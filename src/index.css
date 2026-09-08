@@ -1,0 +1,91 @@
+/* ==========================================================================
+   AuRA Field Dataset Collection System - Global Design Tokens & Base Styles
+   Theme: Earthy Agricultural Modern (Deep Green, Sage, Wheat, Clean Off-White)
+   ========================================================================== */
+
+:root {
+  --primary-900: #0d281e;
+  --primary-800: #16382b;
+  --primary-700: #1b4332;
+  --primary-600: #2d6a4f;
+  --primary-500: #40916c;
+  --primary-400: #52b788;
+  --primary-100: #d8f3dc;
+  --primary-50:  #f0fdf4;
+
+  --accent-amber: #d97706;
+  --accent-amber-light: #fef3c7;
+  --accent-blue: #2563eb;
+  --accent-blue-light: #dbeafe;
+  --accent-red: #dc2626;
+  --accent-red-light: #fee2e2;
+
+  --bg-page: #f6f8f6;
+  --bg-card: #ffffff;
+  --bg-subtle: #f0f4f1;
+  --border-card: #e2e8f0;
+  --border-focus: #2d6a4f;
+
+  --text-main: #0f172a;
+  --text-muted: #475569;
+  --text-subtle: #64748b;
+  --text-inverse: #ffffff;
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --radius-full: 9999px;
+
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.04);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.04);
+
+  --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  --font-display: 'Outfit', var(--font-sans);
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  min-height: 100%;
+  background-color: var(--bg-page);
+  color: var(--text-main);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  line-height: 1.5;
+  touch-action: manipulation;
+  overflow-x: hidden;
+}
+
+/* Ensure inputs don't auto-zoom on mobile safari/chrome */
+input, select, textarea, button {
+  font-family: inherit;
+  font-size: 16px;
+}
+
+button {
+  cursor: pointer;
+  border: none;
+  background: none;
+  user-select: none;
+}
+
+/* Subtle custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-page);
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: var(--radius-full);
+}
