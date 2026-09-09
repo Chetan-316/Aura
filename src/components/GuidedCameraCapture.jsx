@@ -271,7 +271,7 @@ export default function GuidedCameraCapture({
   }, [stopStream]);
 
   // Start live camera stream (ONLY invoked on explicit user action)
-  const startCamera = useCallback(async () => {
+  const startCamera = useCallback(async (targetFacingMode = facingMode) => {
     stopStream();
     setCameraError(null);
 
@@ -291,27 +291,39 @@ export default function GuidedCameraCapture({
     }
 
     try {
-      const constraints = {
-        audio: false,
-        video: {
-          facingMode: { ideal: facingMode },
-          width: { ideal: 1920 },
-          height: { ideal: 1080 }
-        }
-      };
+      let stream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          audio: false,
+          video: {
+            facingMode: { ideal: targetFacingMode },
+            width: { ideal: 1920 },
+            height: { ideal: 1080 }
+          }
+        });
+      } catch (constraintErr) {
+        console.warn("High-res constraints failed, falling back to basic video:", constraintErr);
+        stream = await navigator.mediaDevices.getUserMedia({
+          audio: false,
+          video: {
+            facingMode: targetFacingMode
+          }
+        });
+      }
 
-      const stream = await navigator.mediaDevices.getUserMedia(constraints);
       streamRef.current = stream;
       setCameraState("live");
 
+      // Attach immediately to video element if already mounted
       if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        videoRef.current.onloadedmetadata = () => {
-          videoRef.current?.play().catch((err) => {
-            console.warn("Video play interrupted:", err);
-          });
+        const video = videoRef.current;
+        video.srcObject = stream;
+        video.play().then(() => {
           setStreamActive(true);
-        };
+        }).catch((err) => {
+          console.warn("Video play error on start:", err);
+          setStreamActive(true);
+        });
       }
     } catch (err) {
       console.error("Camera access error:", err);
@@ -324,11 +336,63 @@ export default function GuidedCameraCapture({
         message = "No camera hardware detected on this device. You can choose photos using the Upload button.";
       } else if (err.name === "NotReadableError" || err.name === "TrackStartError") {
         message = "Camera is currently in use by another application. Please close other camera apps and retry.";
+      } else if (err.name === "OverconstrainedError") {
+        message = "Camera resolution not supported by device. Please retry or use the Upload button.";
       }
       setCameraError({ type: err.name, message });
       setCameraState("error");
     }
   }, [facingMode, stopStream]);
+
+  // CRITICAL: Synchronize media stream whenever cameraState switches to 'live' and video element mounts
+  useEffect(() => {
+    if (cameraState === "live" && streamRef.current && videoRef.current) {
+      const video = videoRef.current;
+      if (video.srcObject !== streamRef.current) {
+        video.srcObject = streamRef.current;
+      }
+
+      const activate = () => {
+        setStreamActive(true);
+      };
+
+      video.addEventListener("loadedmetadata", activate);
+      video.addEventListener("playing", activate);
+      video.addEventListener("canplay", activate);
+
+      video.play().catch((err) => {
+        console.warn("Video play promise error:", err);
+        setStreamActive(true);
+      });
+
+      if (video.readyState >= 2) {
+        setStreamActive(true);
+      }
+
+      return () => {
+        video.removeEventListener("loadedmetadata", activate);
+        video.removeEventListener("playing", activate);
+        video.removeEventListener("canplay", activate);
+      };
+    }
+  }, [cameraState]);
+
+  // Safety fallback: ensure spinner does not stay stuck indefinitely if camera stream is active
+  useEffect(() => {
+    if (cameraState === "live" && !streamActive) {
+      const timer = setTimeout(() => {
+        if (streamRef.current && videoRef.current) {
+          console.warn("Fallback timeout: triggering stream active");
+          if (!videoRef.current.srcObject) {
+            videoRef.current.srcObject = streamRef.current;
+          }
+          videoRef.current.play().catch(console.warn);
+          setStreamActive(true);
+        }
+      }, 2500);
+      return () => clearTimeout(timer);
+    }
+  }, [cameraState, streamActive]);
 
   // Handle explicit "Open Camera" click
   const handleUserOpenCamera = () => {
@@ -346,7 +410,7 @@ export default function GuidedCameraCapture({
     const nextMode = facingMode === "environment" ? "user" : "environment";
     setFacingMode(nextMode);
     if (cameraState === "live") {
-      setTimeout(() => startCamera(), 100);
+      startCamera(nextMode);
     }
   };
 
@@ -848,6 +912,12 @@ export default function GuidedCameraCapture({
               playsInline
               autoPlay
               muted
+              onLoadedMetadata={() => {
+                videoRef.current?.play().catch(console.warn);
+                setStreamActive(true);
+              }}
+              onCanPlay={() => setStreamActive(true)}
+              onPlaying={() => setStreamActive(true)}
               className={`camera-video-feed ${streamActive ? "active" : "hidden"}`}
             />
 
@@ -879,6 +949,23 @@ export default function GuidedCameraCapture({
               <div className="camera-init-spinner">
                 <RefreshCw size={32} className="spinner-ring" />
                 <span>Connecting camera feed...</span>
+                <button
+                  type="button"
+                  className="spinner-fallback-btn"
+                  onClick={() => fileInputRef.current?.click()}
+                  style={{
+                    marginTop: "10px",
+                    background: "rgba(255, 255, 255, 0.15)",
+                    border: "1px solid rgba(255, 255, 255, 0.25)",
+                    color: "#ffffff",
+                    padding: "6px 12px",
+                    borderRadius: "16px",
+                    fontSize: "11.5px",
+                    cursor: "pointer"
+                  }}
+                >
+                  Taking long? Tap to Upload
+                </button>
               </div>
             )}
           </div>
