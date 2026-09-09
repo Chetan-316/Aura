@@ -275,7 +275,7 @@ export default function App() {
               <div className="card-title-group">
                 <span className="step-num">1</span>
                 <h2 className="card-title">Select Category</h2>
-                <span className="card-subtitle-mr">(श्रेणी निवडा)</span>
+                <span className="card-subtitle-mr">(कॅटेगरी निवडा)</span>
               </div>
             </div>
 
@@ -465,7 +465,7 @@ export default function App() {
               <div className="input-field-group">
                 <label className="field-label">
                   <span>Packaging Physical Condition</span>
-                  <span className="field-optional">स्थिती</span>
+                  <span className="field-optional">पॅकेजिंग स्थिती</span>
                 </label>
                 <div className="condition-grid">
                   {PACKAGING_CONDITIONS.map((cond) => {
@@ -498,7 +498,7 @@ export default function App() {
                 <div className="card-title-group">
                   <span className="step-num">2</span>
                   <h2 className="card-title">Noise Description</h2>
-                  <span className="card-subtitle-mr">(नमुन्याचे वर्णन)</span>
+                  <span className="card-subtitle-mr">(नॉइज सॅम्पलचे वर्णन)</span>
                 </div>
               </div>
               <div className="input-field-group">
@@ -530,7 +530,7 @@ export default function App() {
                   {isNoise ? "Negative Sample Photos" : "Guided Angle Capture"}
                 </h2>
                 <span className="card-subtitle-mr">
-                  {isNoise ? "(नमुने फोटो)" : "(कोनानुसार कॅमेरा)"}
+                  {isNoise ? "(नॉइज / निगेटिव्ह फोटो)" : "(प्रत्येक अँगलचा फोटो)"}
                 </span>
               </div>
             </div>

@@ -7,7 +7,6 @@ import {
   Camera,
   ShieldCheck,
   Layers,
-  AlertTriangle,
   Lightbulb,
   Sun,
   Eye,
@@ -83,7 +82,7 @@ export default function UserManualModal({ isOpen, onClose }) {
               <Hand size={15} className="item-icon" />
               <div>
                 <strong>Hold Steady</strong>
-                <span>स्थिर हात (Zero motion blur)</span>
+                <span>हात स्थिर ठेवा (Zero motion blur)</span>
               </div>
             </div>
           </div>
@@ -98,7 +97,7 @@ export default function UserManualModal({ isOpen, onClose }) {
             id="tab-angles"
           >
             <Camera size={15} />
-            <span>5 Required Angles (५ आवश्यक कोन)</span>
+            <span>5 Required Angles (५ आवश्यक अँगल्स)</span>
           </button>
           <button
             type="button"
@@ -107,7 +106,7 @@ export default function UserManualModal({ isOpen, onClose }) {
             id="tab-checklist"
           >
             <ShieldCheck size={15} />
-            <span>Do's & Don'ts (नियम व काळजी)</span>
+            <span>Do's & Don'ts (काय करावे आणि काय टाळावे)</span>
           </button>
           <button
             type="button"
@@ -116,7 +115,7 @@ export default function UserManualModal({ isOpen, onClose }) {
             id="tab-noise"
           >
             <Layers size={15} />
-            <span>Noise / Negative Samples (कचरा नमुने)</span>
+            <span>Noise / Negative Samples (नॉइज / निगेटिव्ह सॅम्पल्स)</span>
           </button>
         </div>
 
@@ -140,7 +139,7 @@ export default function UserManualModal({ isOpen, onClose }) {
                   <div className="angle-guide-header-info">
                     <div className="angle-title-row">
                       <h3 className="angle-guide-title">Front Label</h3>
-                      <span className="angle-mr-tag">मुख्य बाजू</span>
+                      <span className="angle-mr-tag">पुढील बाजू</span>
                     </div>
                     <span className="angle-guide-target">
                       Target: Full branding, trade name, active chemical formula & manufacturer logo
@@ -167,7 +166,7 @@ export default function UserManualModal({ isOpen, onClose }) {
                   <div className="angle-guide-header-info">
                     <div className="angle-title-row">
                       <h3 className="angle-guide-title">Side Panel</h3>
-                      <span className="angle-mr-tag">बाजूचा भाग</span>
+                      <span className="angle-mr-tag">साइड पॅनेल</span>
                     </div>
                     <span className="angle-guide-target">
                       Target: Recommended dosage chart, target crops, license & toxicity triangle
@@ -219,7 +218,7 @@ export default function UserManualModal({ isOpen, onClose }) {
                   <div className="angle-guide-header-info">
                     <div className="angle-title-row">
                       <h3 className="angle-guide-title">Barcode & QR Code</h3>
-                      <span className="angle-mr-tag">बारकोड व क्यूआर</span>
+                      <span className="angle-mr-tag">बारकोड व क्यूआर कोड</span>
                     </div>
                     <span className="angle-guide-target">
                       Target: High-contrast 1D EAN barcodes and 2D QR tracking codes
@@ -245,7 +244,7 @@ export default function UserManualModal({ isOpen, onClose }) {
                   <div className="angle-guide-header-info">
                     <div className="angle-title-row">
                       <h3 className="angle-guide-title">Back Panel / Composition</h3>
-                      <span className="angle-mr-tag">मागील रचना</span>
+                      <span className="angle-mr-tag">मागील बाजू (घटक व तपशील)</span>
                     </div>
                     <span className="angle-guide-target">
                       Target: Batch number, Mfg Date, Expiry date, Maximum Retail Price (MRP ₹) & Antidote
@@ -344,37 +343,30 @@ export default function UserManualModal({ isOpen, onClose }) {
           {/* TAB 3: NOISE SAMPLES */}
           {activeTab === "noise" && (
             <div className="manual-section-stack">
-              <div className="manual-intro-card warning">
-                <AlertTriangle size={18} className="intro-icon" />
-                <p>
-                  <strong>Why Negative / Noise Data is Crucial:</strong> When a dealer or farmer opens the app inside a shop, the camera frequently sees the shop counter, empty shelves, hands, or tea cups. The offline AI must be trained with negative examples so it <strong>never hallucinates or triggers a false product detection</strong> on everyday shop surroundings.
-                </p>
-              </div>
-
               <h4 className="noise-section-title">What Counts as a Valid Noise Photo:</h4>
 
               <div className="noise-guidelines-grid">
                 <div className="noise-sample-type">
                   <span className="noise-type-badge">Negative Type 1</span>
-                  <h4>Empty Shelves & Walls (रिकामे रॅक)</h4>
+                  <h4>Empty Shelves & Walls (रिकामे रॅक व भिंती)</h4>
                   <p>Wooden or metal shop racks, empty pegboard hooks, shadows, price tags, and blank store walls without products.</p>
                 </div>
 
                 <div className="noise-sample-type">
                   <span className="noise-type-badge">Negative Type 2</span>
-                  <h4>Counter Clutter & Hands (काउंटर व हात)</h4>
+                  <h4>Counter Clutter & Hands (काउंटरवरील वस्तू व हात)</h4>
                   <p>Dealer or farmer hands holding cash, keys, or pens; sales register books, billing slips, or calculators on the desk.</p>
                 </div>
 
                 <div className="noise-sample-type">
                   <span className="noise-type-badge">Negative Type 3</span>
-                  <h4>Extreme Blur & Glare (धूसर व चमक)</h4>
+                  <h4>Extreme Blur & Glare (धूसर फोटो व चमक)</h4>
                   <p>Motion-blurred camera frames, hand passing in front of lens, extreme daylight bloom, or un-focused shop backgrounds.</p>
                 </div>
 
                 <div className="noise-sample-type">
                   <span className="noise-type-badge">Negative Type 4</span>
-                  <h4>Non-Agro Everyday Items (इतर वस्तू)</h4>
+                  <h4>Non-Agro Everyday Items (इतर दैनंदिन वस्तू)</h4>
                   <p>Drinking water bottles, chai glasses, cardboard packing cartons, mobile phones, or unrelated shop supplies.</p>
                 </div>
               </div>

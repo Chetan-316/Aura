@@ -11,7 +11,7 @@ export const CATEGORIES = [
   { id: "Pesticide", label: "Pesticide", mr: "कीटकनाशक", icon: "spray", badge: "Chem", color: "#10b981" },
   { id: "Fertilizer", label: "Fertilizer", mr: "खते / पोषण", icon: "wheat", badge: "Nutrient", color: "#f59e0b" },
   { id: "Seed", label: "Seed", mr: "बियाणे", icon: "sprout", badge: "Hybrid", color: "#3b82f6" },
-  { id: "Not a Product — Noise", label: "Noise / Negative", mr: "निगेटिव्ह / कचरा", icon: "slash", badge: "Noise", color: "#ef4444", isNoise: true }
+  { id: "Not a Product — Noise", label: "Noise / Negative", mr: "नॉइज / निगेटिव्ह", icon: "slash", badge: "Noise", color: "#ef4444", isNoise: true }
 ];
 
 // Configurable packaging types — each carries its own ordered set of photo angles.
@@ -88,7 +88,7 @@ export const PACKAGING_TYPES = [
     mr: "पाऊच / पाकीट",
     icon: "package",
     description: "Seed packets, powder sachets, granule bags",
-    descriptionMr: "बियाणे पाकीट, पावडर सॅशे, दाणे पिशवी",
+    descriptionMr: "बियाणे पाकीट, पावडर सॅशे, दाणेदार पिशवी",
     photoAngles: [
       {
         id: "Front",

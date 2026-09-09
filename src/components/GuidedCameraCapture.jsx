@@ -679,7 +679,7 @@ export default function GuidedCameraCapture({
               {isNoise ? "Rapid Multi-Photo Capture" : currentStep.label}
             </span>
             <span className="step-angle-mr">
-              ({isNoise ? "निगेटिव्ह नमुने" : currentStep.mr})
+              ({isNoise ? "नॉइज / निगेटिव्ह सॅम्पल्स" : currentStep.mr})
             </span>
           </div>
 
