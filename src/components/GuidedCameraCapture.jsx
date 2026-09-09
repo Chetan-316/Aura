@@ -23,51 +23,51 @@ const PRODUCT_STEPS = [
     id: "Front",
     label: "Front Label",
     tabLabel: "Front Label",
-    tabSubtext: "Main Brand • 1 of 5",
+    tabSubtext: "Main brand",
     mr: "मुख्य बाजू",
-    tip: "Full branding & product title",
-    guide: "Angle 1 of 5: Hold bottle/pack upright. Frame entire brand title, manufacturer logo, and active chemistry percentage.",
-    tooltip: "Angle 1 of 5: Front Label (मुख्य बाजू) — Full branding & product title"
+    tip: "Brand & product name",
+    guide: "Hold bottle/pack upright. Frame entire brand title, manufacturer logo, and active ingredients.",
+    tooltip: "Angle 1 of 5: Front Label — Full branding & product title"
   },
   {
     id: "Side",
-    label: "Side Panel (any one side clearly visible)",
+    label: "Side Panel",
     tabLabel: "Side Panel",
-    tabSubtext: "Any 1 side visible • 2 of 5",
+    tabSubtext: "Any 1 side",
     mr: "बाजूचा भाग",
-    tip: "Dosage chart, crop table & toxicity diamond",
-    guide: "Angle 2 of 5: Rotate 90°. Frame technical directions, crop dosage charts (ml/ha), toxicity triangle, and statutory license. Any one side clearly visible is sufficient — left or right.",
-    tooltip: "Angle 2 of 5: Side Panel (any one side clearly visible) (बाजूचा भाग) — Dosage chart, crop table & toxicity diamond"
+    tip: "Dosage & toxicity info",
+    guide: "Rotate 90°. Frame dosage chart, directions, and toxicity triangle. Either side is fine.",
+    tooltip: "Angle 2 of 5: Side Panel — Dosage chart & toxicity triangle"
   },
   {
     id: "Cap/Lid",
-    label: "Cap / Lid (Top Seal)",
+    label: "Cap / Lid",
     tabLabel: "Cap / Lid",
-    tabSubtext: "Seal & ring • 3 of 5",
+    tabSubtext: "Top seal",
     mr: "झाकण / सील",
-    tip: "Seal color, brand embossing & tamper ring",
-    guide: "Angle 3 of 5: Shoot from 45° above. Capture tamper-evident foil seal, band color, and embossed brand logo on cap.",
-    tooltip: "Angle 3 of 5: Cap / Lid (झाकण / सील) — Tamper-evident foil seal, cap color & embossing"
+    tip: "Seal & cap details",
+    guide: "Shoot from 45° above. Capture tamper-evident foil seal, band color, and embossed logo on lid.",
+    tooltip: "Angle 3 of 5: Cap / Lid — Tamper seal, color & embossing"
   },
   {
     id: "Barcode",
-    label: "Barcode / QR (Close-up)",
+    label: "Barcode / QR",
     tabLabel: "Barcode / QR",
-    tabSubtext: "Flat scan • 4 of 5",
+    tabSubtext: "Close-up",
     mr: "बारकोड",
-    tip: "High-contrast close-up",
-    guide: "Angle 4 of 5: Get a sharp, glare-free close-up (10-15 cm). On flexible pouches, hold package flat to keep barcode straight.",
-    tooltip: "Angle 4 of 5: Barcode / QR (बारकोड) — Flat, high-contrast close-up"
+    tip: "Sharp barcode code",
+    guide: "Get a sharp close-up (10-15 cm). On flexible pouches, hold flat so barcode lines are straight.",
+    tooltip: "Angle 4 of 5: Barcode / QR — High-contrast scan"
   },
   {
     id: "Back panel",
-    label: "Back Panel (Angle 5 of 5)",
+    label: "Back Panel",
     tabLabel: "Back Panel",
-    tabSubtext: "Angle 5 of 5",
+    tabSubtext: "Batch & MRP",
     mr: "मागील रचना",
-    tip: "Chemical formulation, concentration/dosage, statutory & batch text",
-    guide: "Angle 5 of 5: Frame chemical formulation, active concentration, dosage chart, statutory text, batch number, Mfg/Exp dates, and MRP.",
-    tooltip: "Angle 5 of 5: Back Panel (मागील रचना) — Chemical formulation, concentration, dosage, statutory & batch text"
+    tip: "Batch, dates & price",
+    guide: "Frame back text: chemical formula, batch number, Mfg/Exp dates, and MRP ₹.",
+    tooltip: "Angle 5 of 5: Back Panel — Formulation, batch & dates"
   }
 ];
 
@@ -542,22 +542,20 @@ export default function GuidedCameraCapture({
 
   return (
     <div className="guided-camera-container">
-      {/* 1. UPFRONT 5-ANGLE SUMMARY BANNER (Shown for Product flow) */}
-      {!isNoise && (
+      {/* 1. UPFRONT 5-ANGLE SUMMARY BANNER (Shown initially before capture starts) */}
+      {!isNoise && capturedCount === 0 && (
         <div className="angle-sequence-summary-bar" id="angle-sequence-summary">
-          <div className="sequence-summary-badge">5 Angles</div>
           <span className="sequence-summary-text">
-            You'll capture 5 photos: <strong>Front Label</strong> → <strong>Side Panel (any 1 side)</strong> → <strong>Cap/Lid</strong> → <strong>Barcode</strong> → <strong>Back Panel (5 of 5)</strong>
+            5 Photos: <strong>1. Front</strong> → <strong>2. Side</strong> → <strong>3. Cap/Lid</strong> → <strong>4. Barcode</strong> → <strong>5. Back</strong>
           </span>
         </div>
       )}
 
       {/* Upfront Info Banner for Noise mode */}
-      {isNoise && (
+      {isNoise && capturedCount === 0 && (
         <div className="noise-sequence-summary-bar" id="noise-sequence-summary">
-          <div className="noise-summary-badge">Multi-Photo Noise</div>
           <span className="noise-summary-text">
-            Capture or upload multiple non-product photos in one session: <strong>Counter clutter</strong> • <strong>Empty racks</strong> • <strong>Hands holding items</strong> • <strong>Unrelated cartons</strong>
+            Multi-photo noise: <strong>Empty racks</strong> • <strong>Counter clutter</strong> • <strong>Hands holding items</strong> • <strong>Cartons</strong>
           </span>
         </div>
       )}

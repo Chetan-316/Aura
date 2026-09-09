@@ -2766,38 +2766,147 @@
 @media (max-width: 640px) {
   .app-header {
     border-radius: 0 0 var(--radius-md) var(--radius-md);
-    padding: 16px 14px;
+    padding: 10px 12px;
+  }
+
+  .brand-badge {
+    gap: 8px;
+  }
+
+  .brand-logo-icon {
+    width: 32px;
+    height: 32px;
   }
 
   .brand-title {
-    font-size: 19px;
+    font-size: 16px;
+    font-weight: 700;
   }
 
-  .brand-subtitle {
-    font-size: 11px;
-  }
-
-  .header-meta-bar {
-    margin-top: 10px;
-    padding-top: 10px;
-  }
-
-  .header-mission {
-    font-size: 11px;
+  .header-actions-group {
+    gap: 6px;
   }
 
   .btn-manual-trigger {
-    padding: 5px 9px;
+    padding: 4px 8px;
     font-size: 11px;
+    gap: 4px;
+  }
+
+  .status-indicator {
+    padding: 4px 7px;
+    font-size: 10.5px;
+  }
+
+  .header-session-counter {
+    padding: 3px 7px;
+    font-size: 10.5px;
   }
 
   .main-content {
-    padding: 12px;
-    gap: 14px;
+    padding: 10px;
+    gap: 12px;
   }
 
   .form-card {
-    padding: 14px;
+    padding: 12px;
+  }
+
+  /* Guided Camera & Angle Capture Mobile Optimizations (Anti-Clutter) */
+  .angle-sequence-summary-bar,
+  .noise-sequence-summary-bar {
+    padding: 6px 10px;
+    font-size: 11px;
+    gap: 6px;
+    border-radius: 6px;
+    line-height: 1.35;
+  }
+
+  .sequence-summary-text,
+  .noise-summary-text {
+    font-size: 11px;
+  }
+
+  .guided-step-header {
+    gap: 6px;
+  }
+
+  .step-progress-row {
+    gap: 4px;
+    align-items: center;
+  }
+
+  .step-indicator-badge {
+    gap: 5px;
+  }
+
+  .step-pill {
+    padding: 2px 7px;
+    font-size: 10.5px;
+  }
+
+  .step-angle-title {
+    font-size: 13.5px;
+    font-weight: 700;
+  }
+
+  .step-angle-mr {
+    display: none; /* Hide duplicate Marathi in step title on mobile to keep 1 clean row */
+  }
+
+  .step-counter-tag {
+    padding: 2px 6px;
+    font-size: 10.5px;
+  }
+
+  .btn-manual-shortcut {
+    padding: 2px 6px;
+    font-size: 10.5px;
+  }
+
+  /* Compact Horizontal Stepper Pills on Mobile */
+  .stepper-dots-bar {
+    gap: 4px;
+    padding: 2px 0 4px 0;
+  }
+
+  .step-dot-btn {
+    padding: 5px 8px;
+    gap: 5px;
+    border-radius: 6px;
+  }
+
+  .dot-circle {
+    width: 17px;
+    height: 17px;
+    font-size: 9.5px;
+  }
+
+  .dot-label {
+    font-size: 11px;
+    font-weight: 600;
+  }
+
+  .dot-sublabel {
+    display: none; /* Hides verbose secondary subtext so tabs are sleek thumb-friendly pills! */
+  }
+
+  /* Ultra-Compact Guidance Tip */
+  .angle-guide-callout {
+    padding: 6px 10px;
+    font-size: 11.5px;
+    gap: 6px;
+    margin-top: 2px;
+    border-radius: 6px;
+  }
+
+  .guide-tip-strong {
+    font-size: 11px;
+  }
+
+  .guide-tip-desc {
+    font-size: 11px;
+    line-height: 1.35;
   }
 
   .category-grid {
@@ -2950,6 +3059,10 @@
 
   .sticky-submit-container {
     padding: 8px 12px;
+  }
+
+  .submit-target-folder {
+    display: none;
   }
 
   .submit-count-label {

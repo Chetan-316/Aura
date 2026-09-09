@@ -209,16 +209,10 @@ export default function App() {
         <div className="header-top">
           <div className="brand-badge">
             <div className="brand-logo-icon">
-              <Sprout size={24} strokeWidth={2.4} />
+              <Sprout size={22} strokeWidth={2.4} />
             </div>
-            <div>
-              <div className="brand-title-row">
-                <h1 className="brand-title">Agri-Product Dataset Collector</h1>
-                <span className="brand-badge-tag">Field Portal</span>
-              </div>
-              <p className="brand-subtitle">
-                Maharashtra Agri-Product Survey Portal • महाराष्ट्र कृषी उत्पादन सर्वेक्षण पोर्टल
-              </p>
+            <div className="brand-title-row">
+              <h1 className="brand-title">Product Catalog Collector</h1>
             </div>
           </div>
 
@@ -229,27 +223,22 @@ export default function App() {
               className="btn-manual-trigger"
               id="btn-field-guidelines"
               onClick={() => setIsManualOpen(true)}
-              title="Open Field Photography Guidelines"
+              title="Open Photography Guidelines"
             >
-              <BookOpen size={16} />
-              <span>Field Guidelines (मार्गदर्शक)</span>
+              <BookOpen size={14} />
+              <span>Guidelines</span>
             </button>
 
             <div className="status-indicator">
               <span className={`status-dot ${isOnline ? "" : "offline"}`} />
               <span>{isOnline ? "Online" : "Offline"}</span>
             </div>
-          </div>
-        </div>
 
-        <div className="header-meta-bar">
-          <p className="header-mission">
-            Field documentation system for capturing standardized high-resolution photos of agricultural input packaging.
-          </p>
-
-          <div className="header-session-counter">
-            <span>Session Logs:</span>
-            <span className="counter-num">{sessionCount} submitted</span>
+            {sessionCount > 0 && (
+              <div className="header-session-counter">
+                <span className="counter-num">{sessionCount} saved</span>
+              </div>
+            )}
           </div>
         </div>
       </header>
