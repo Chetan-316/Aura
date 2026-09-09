@@ -1,5 +1,5 @@
 /**
- * AuRA Agricultural Product Data Collector - Google Apps Script Backend
+ * Agricultural Product Data Collector - Google Apps Script Backend
  * Folder ID: 11V6Coo-3MKs6ibvxqGfY4BXy8ZGPJf4I
  *
  * This script receives product photos & metadata from the field collection web app,
@@ -8,7 +8,7 @@
  */
 
 const ROOT_FOLDER_ID = "11V6Coo-3MKs6ibvxqGfY4BXy8ZGPJf4I";
-const MASTER_SHEET_NAME = "AuRA_Field_Data_Master_Registry";
+const MASTER_SHEET_NAME = "Field_Data_Master_Registry";
 
 function doPost(e) {
   try {
@@ -27,7 +27,7 @@ function doPost(e) {
 function doGet(e) {
   return responseJSON({
     status: "online",
-    message: "AuRA Field Data Collection API is ready to receive submissions."
+    message: "Field Data Collection API is ready to receive submissions."
   });
 }
 

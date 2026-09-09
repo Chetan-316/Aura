@@ -1,5 +1,5 @@
 /**
- * AuRA Field Data Collector - Client Configuration
+ * Agri-Product Field Data Collector - Client Configuration
  */
 
 export const DEFAULT_API_ENDPOINT = "https://script.google.com/macros/s/AKfycbwytzY4h0HE_ofWrnsfTCZkHX2M8Iw3y_l_fqGaCxReVJQ-bJ-bPTheVfNeoQ9-gVjw/exec";

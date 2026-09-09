@@ -1,26 +1,25 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import {
   API_ENDPOINT,
   CATEGORIES,
-  PHOTO_ANGLES,
   PACKAGING_CONDITIONS,
   NOISE_TYPES
 } from "./config";
-import { compressImage, formatBytes } from "./utils/compressor";
+import GuidedCameraCapture from "./components/GuidedCameraCapture";
+import UserManualModal from "./components/UserManualModal";
 import {
-  Camera,
-  Image as ImageIcon,
   CheckCircle2,
   AlertCircle,
-  Trash2,
   Upload,
-  RefreshCw,
   FolderCheck,
   ChevronRight,
   ExternalLink,
-  ShieldCheck,
-  Sparkles,
-  Info
+  Info,
+  BookOpen,
+  FlaskConical,
+  Wheat,
+  Sprout,
+  Ban
 } from "lucide-react";
 import "./App.css";
 
@@ -32,19 +31,22 @@ export default function App() {
   const [manufacturer, setManufacturer] = useState("");
   const [packSize, setPackSize] = useState("");
   const [condition, setCondition] = useState("New/Clean");
-  const [selectedAngles, setSelectedAngles] = useState(["Front"]);
   const [notes, setNotes] = useState("");
   const [noiseTag, setNoiseTag] = useState("");
 
-  // --- Photos State ---
+  // --- Photos State (Managed sequentially via GuidedCameraCapture) ---
   const [photos, setPhotos] = useState([]);
-  const [isCompressing, setIsCompressing] = useState(false);
-  const [dragOver, setDragOver] = useState(false);
+  const [resetTrigger, setResetTrigger] = useState(0);
 
   // --- Network & Session State ---
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [sessionCount, setSessionCount] = useState(0);
   const [sessionHistory, setSessionHistory] = useState([]);
+
+  // --- User Manual Modal State ---
+  const [isManualOpen, setIsManualOpen] = useState(() => {
+    return new URLSearchParams(window.location.search).get("manual") === "1";
+  });
 
   // --- Submission State ---
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -52,9 +54,6 @@ export default function App() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [lastSubmissionResult, setLastSubmissionResult] = useState(null);
   const [submitError, setSubmitError] = useState(null);
-
-  const fileInputRef = useRef(null);
-  const cameraInputRef = useRef(null);
 
   const isNoise = category.includes("Noise") || category.includes("Not a Product");
 
@@ -70,62 +69,10 @@ export default function App() {
     };
   }, []);
 
-  // Toggle angle checkbox
-  const toggleAngle = (angleId) => {
-    setSelectedAngles((prev) =>
-      prev.includes(angleId) ? prev.filter((a) => a !== angleId) : [...prev, angleId]
-    );
-  };
-
-  // Handle file uploads (both camera and gallery)
-  const handleFilesSelected = async (fileList) => {
-    if (!fileList || fileList.length === 0) return;
-    setIsCompressing(true);
-
-    const files = Array.from(fileList);
-    const compressedList = [];
-
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      try {
-        const compressed = await compressImage(file, 1600, 0.82);
-        // Pre-assign an angle if available from remaining unassigned selectedAngles
-        const currentCount = photos.length + compressedList.length;
-        if (!isNoise && selectedAngles[currentCount]) {
-          compressed.angle = selectedAngles[currentCount];
-        } else if (!isNoise && selectedAngles.length > 0) {
-          compressed.angle = selectedAngles[0];
-        } else {
-          compressed.angle = isNoise ? "Noise Sample" : "Front";
-        }
-        compressedList.push(compressed);
-      } catch (err) {
-        console.error("Failed to compress file:", file.name, err);
-      }
-    }
-
-    setPhotos((prev) => [...prev, ...compressedList]);
-    setIsCompressing(false);
-
-    // Reset native input values so re-selecting same photo triggers onChange
-    if (fileInputRef.current) fileInputRef.current.value = "";
-    if (cameraInputRef.current) cameraInputRef.current.value = "";
-  };
-
-  const removePhoto = (id) => {
-    setPhotos((prev) => prev.filter((p) => p.id !== id));
-  };
-
-  const updatePhotoAngle = (id, newAngle) => {
-    setPhotos((prev) =>
-      prev.map((p) => (p.id === id ? { ...p, angle: newAngle } : p))
-    );
-  };
-
   // Validation
   const isValid = () => {
     if (photos.length === 0) return false;
-    if (isNoise) return true; // Noise only needs photos
+    if (isNoise) return true; // Noise only needs at least 1 photo
     return productName.trim().length > 0;
   };
 
@@ -139,7 +86,9 @@ export default function App() {
     setSubmitStep("Optimizing & packaging data...");
     setUploadProgress(20);
 
-    const finalAngles = isNoise ? ["Noise"] : selectedAngles;
+    const finalAngles = isNoise
+      ? ["Noise"]
+      : photos.map((p) => p.angle || "Angle");
     const finalProductName = isNoise
       ? (noiseTag || notes || "Noise Negative Sample")
       : productName.trim();
@@ -216,455 +165,347 @@ export default function App() {
     setManufacturer("");
     setPackSize("");
     setCondition("New/Clean");
-    setSelectedAngles(["Front"]);
     setNotes("");
     setNoiseTag("");
     setPhotos([]);
+    setResetTrigger((prev) => prev + 1);
     window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  // Category Icon Helper
+  const getCategoryIcon = (catId) => {
+    switch (catId) {
+      case "Pesticide":
+        return <FlaskConical size={20} />;
+      case "Fertilizer":
+        return <Wheat size={20} />;
+      case "Seed":
+        return <Sprout size={20} />;
+      default:
+        return <Ban size={20} />;
+    }
   };
 
   return (
     <div className="app-wrapper">
-      {/* --- Top App Header --- */}
+      {/* --- Top Professional Institutional Header --- */}
       <header className="app-header">
         <div className="header-top">
           <div className="brand-badge">
-            <div className="brand-logo-icon">🌿</div>
+            <div className="brand-logo-icon">
+              <Sprout size={24} strokeWidth={2.4} />
+            </div>
             <div>
-              <h1 className="brand-title">AuRA Vision</h1>
-              <p className="brand-subtitle">Agri Dataset Collector</p>
+              <div className="brand-title-row">
+                <h1 className="brand-title">Agri-Product Dataset Collector</h1>
+                <span className="brand-badge-tag">Field Portal</span>
+              </div>
+              <p className="brand-subtitle">
+                Maharashtra Agri-Input Dataset Collector • महाराष्ट्र कृषी डेटा संकलन केंद्र
+              </p>
             </div>
           </div>
-          <div className="status-indicator">
-            <span className={`status-dot ${isOnline ? "" : "offline"}`} />
-            <span>{isOnline ? "Online" : "Offline"}</span>
+
+          {/* Header Action Badges */}
+          <div className="header-actions-group">
+            <button
+              type="button"
+              className="btn-manual-trigger"
+              id="btn-field-guidelines"
+              onClick={() => setIsManualOpen(true)}
+              title="Open Field Photography Guidelines"
+            >
+              <BookOpen size={16} />
+              <span>Field Guidelines (मार्गदर्शक)</span>
+            </button>
+
+            <div className="status-indicator">
+              <span className={`status-dot ${isOnline ? "" : "offline"}`} />
+              <span>{isOnline ? "Online" : "Offline"}</span>
+            </div>
           </div>
         </div>
 
-        <p className="header-mission">
-          Collecting field photo datasets for offline crop input recognition across Maharashtra.
-        </p>
+        <div className="header-meta-bar">
+          <p className="header-mission">
+            Collecting standardized 5-angle datasets to power offline mobile counterfeit and crop input recognition for retail dealers across rural Maharashtra.
+          </p>
 
-        <div className="header-session-counter">
-          <span>Session Submissions:</span>
-          <span className="counter-num">{sessionCount} completed</span>
+          <div className="header-session-counter">
+            <span>Session Logs:</span>
+            <span className="counter-num">{sessionCount} submitted</span>
+          </div>
         </div>
       </header>
 
-      {/* --- Main Interactive Form --- */}
+      {/* --- Main Interactive Form (2-Column Grid on Desktop) --- */}
       <main className="main-content">
-        {/* Step 1: Category Selection */}
-        <section className="form-card">
-          <div className="card-header">
-            <div className="card-title-group">
-              <span className="step-num">1</span>
-              <h2 className="card-title">Select Category</h2>
-              <span className="card-subtitle-mr">(श्रेणी निवडा)</span>
-            </div>
-          </div>
-
-          <div className="category-grid">
-            {CATEGORIES.map((cat) => {
-              const isSelected = category === cat.id;
-              return (
-                <button
-                  key={cat.id}
-                  type="button"
-                  className={`category-card ${isSelected ? "selected" : ""} ${
-                    cat.isNoise ? "is-noise" : ""
-                  }`}
-                  onClick={() => setCategory(cat.id)}
-                >
-                  <div
-                    className="cat-icon-wrapper"
-                    style={{
-                      background: isSelected ? cat.color : "#f1f5f9",
-                      color: isSelected ? "#ffffff" : "#475569"
-                    }}
-                  >
-                    {cat.id === "Pesticide" && "🧪"}
-                    {cat.id === "Fertilizer" && "🌾"}
-                    {cat.id === "Seed" && "🌱"}
-                    {cat.id.includes("Noise") && "🚫"}
-                  </div>
-                  <div className="cat-text-group">
-                    <span className="cat-title">{cat.label}</span>
-                    <span className="cat-subtitle">{cat.mr}</span>
-                  </div>
-                  {isSelected && <CheckCircle2 className="cat-check-badge" size={18} />}
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Noise Guidance Banner */}
-          {isNoise && (
-            <div className="noise-banner">
-              <Info className="noise-banner-icon" />
-              <div>
-                <h4 className="noise-banner-title">Negative / Noise Example Mode</h4>
-                <p className="noise-banner-desc">
-                  Take photos of blurry items, empty shelves, hands, counter clutter, or unrelated objects. This critical data trains our offline model to avoid false positives in rural shops.
-                </p>
-                <div className="quick-tags-group">
-                  {NOISE_TYPES.map((tag) => (
-                    <button
-                      key={tag}
-                      type="button"
-                      className={`quick-tag-chip ${noiseTag === tag ? "active" : ""}`}
-                      onClick={() => {
-                        setNoiseTag(tag);
-                        setNotes(tag);
-                      }}
-                    >
-                      {tag}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-        </section>
-
-        {/* Step 2: Product Details (Hidden if Noise) */}
-        {!isNoise ? (
+        {/* Left Column: Product & Sample Metadata */}
+        <div className="form-col-details">
+          {/* Step 1: Category Selection */}
           <section className="form-card">
             <div className="card-header">
               <div className="card-title-group">
-                <span className="step-num">2</span>
-                <h2 className="card-title">Product Details</h2>
-                <span className="card-subtitle-mr">(उत्पादनाची माहिती)</span>
+                <span className="step-num">1</span>
+                <h2 className="card-title">Select Category</h2>
+                <span className="card-subtitle-mr">(श्रेणी निवडा)</span>
               </div>
             </div>
 
-            <div className="input-field-group">
-              <label className="field-label" htmlFor="prod-name">
-                <span>
-                  Product Name <span className="field-required-star">*</span>
-                </span>
-                <span className="field-optional">नाव (उदा. Coromandel Gromor)</span>
-              </label>
-              <input
-                id="prod-name"
-                type="text"
-                className="text-input"
-                placeholder="e.g. Coromandel Gromor 28-28-0"
-                value={productName}
-                onChange={(e) => setProductName(e.target.value)}
-                required
-              />
-            </div>
-
-            <div className="input-row-2col">
-              <div className="input-field-group">
-                <label className="field-label" htmlFor="prod-mfg">
-                  <span>Manufacturer</span>
-                  <span className="field-optional">Optional</span>
-                </label>
-                <input
-                  id="prod-mfg"
-                  type="text"
-                  className="text-input"
-                  placeholder="e.g. Bayer, UPL, Syngenta"
-                  value={manufacturer}
-                  onChange={(e) => setManufacturer(e.target.value)}
-                />
-              </div>
-
-              <div className="input-field-group">
-                <label className="field-label" htmlFor="prod-pack">
-                  <span>Pack Size</span>
-                  <span className="field-optional">Optional</span>
-                </label>
-                <input
-                  id="prod-pack"
-                  type="text"
-                  className="text-input"
-                  placeholder="e.g. 250ml, 1kg, 50kg"
-                  value={packSize}
-                  onChange={(e) => setPackSize(e.target.value)}
-                />
-              </div>
-            </div>
-
-            <div className="input-field-group">
-              <label className="field-label" htmlFor="prod-reg">
-                <span>Registration / Certification No.</span>
-                <span className="field-optional">Optional (नोंदणी क्रमांक)</span>
-              </label>
-              <input
-                id="prod-reg"
-                type="text"
-                className="text-input"
-                placeholder="e.g. CIR-18239/2018..."
-                value={regNumber}
-                onChange={(e) => setRegNumber(e.target.value)}
-              />
-            </div>
-
-            <div className="input-field-group">
-              <label className="field-label">
-                <span>Packaging Condition</span>
-                <span className="field-optional">स्थिती</span>
-              </label>
-              <div className="condition-grid">
-                {PACKAGING_CONDITIONS.map((cond) => {
-                  const isSelected = condition === cond.id;
-                  return (
-                    <button
-                      key={cond.id}
-                      type="button"
-                      className={`condition-pill ${isSelected ? "selected" : ""}`}
-                      onClick={() => setCondition(cond.id)}
-                    >
-                      <span
-                        className="condition-dot"
-                        style={{ background: cond.color }}
-                      />
-                      <div>
-                        <div className="condition-title">{cond.label}</div>
-                        <div className="condition-desc">{cond.desc}</div>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          </section>
-        ) : (
-          /* Noise Description input */
-          <section className="form-card">
-            <div className="card-header">
-              <div className="card-title-group">
-                <span className="step-num">2</span>
-                <h2 className="card-title">Noise Description</h2>
-                <span className="card-subtitle-mr">(नमुन्याचे वर्णन)</span>
-              </div>
-            </div>
-            <div className="input-field-group">
-              <label className="field-label" htmlFor="noise-desc">
-                <span>What does this noise photo represent?</span>
-                <span className="field-optional">Optional</span>
-              </label>
-              <input
-                id="noise-desc"
-                type="text"
-                className="text-input"
-                placeholder="e.g. Blurry bottle rack, counter floor, hand in frame"
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-              />
-            </div>
-          </section>
-        )}
-
-        {/* Step 3: Photo Angles Checklist (Only for real products) */}
-        {!isNoise && (
-          <section className="form-card">
-            <div className="card-header">
-              <div className="card-title-group">
-                <span className="step-num">3</span>
-                <h2 className="card-title">Photo Angles Captured</h2>
-                <span className="card-subtitle-mr">(फोटोचे कोन)</span>
-              </div>
-            </div>
-            <p style={{ fontSize: "13px", color: "var(--text-subtle)", marginBottom: "12px" }}>
-              Check all angles you are capturing for this product:
-            </p>
-            <div className="angles-checklist">
-              {PHOTO_ANGLES.map((angle) => {
-                const isChecked = selectedAngles.includes(angle.id);
+            <div className="category-grid">
+              {CATEGORIES.map((cat) => {
+                const isSelected = category === cat.id;
                 return (
-                  <div
-                    key={angle.id}
-                    className={`angle-row-item ${isChecked ? "checked" : ""}`}
-                    onClick={() => toggleAngle(angle.id)}
+                  <button
+                    key={cat.id}
+                    type="button"
+                    id={`cat-select-${cat.id.toLowerCase().replace(/[^a-z0-9]/g, "-")}`}
+                    className={`category-card ${isSelected ? "selected" : ""} ${
+                      cat.isNoise ? "is-noise" : ""
+                    }`}
+                    onClick={() => setCategory(cat.id)}
                   >
-                    <div className="angle-left">
-                      <div className="custom-checkbox">
-                        {isChecked && <CheckCircle2 size={16} />}
-                      </div>
-                      <div>
-                        <span className="angle-title">{angle.label}</span>
-                        <span className="angle-mr">{angle.mr}</span>
-                      </div>
+                    <div className="cat-icon-wrapper">
+                      {getCategoryIcon(cat.id)}
                     </div>
-                    <span className="angle-tip">{angle.tip}</span>
-                  </div>
+                    <div className="cat-text-group">
+                      <span className="cat-title">{cat.label}</span>
+                      <span className="cat-subtitle">{cat.mr}</span>
+                    </div>
+                    {isSelected && <CheckCircle2 className="cat-check-badge" size={16} />}
+                  </button>
                 );
               })}
             </div>
+
+            {/* Noise Guidance Banner */}
+            {isNoise && (
+              <div className="noise-banner">
+                <Info className="noise-banner-icon" />
+                <div>
+                  <h4 className="noise-banner-title">Negative / Noise Sample Mode</h4>
+                  <p className="noise-banner-desc">
+                    Capture empty shop shelves, dealer hands, counter clutter, or unrelated cartons. This data trains the offline AI to reject false positives.
+                  </p>
+                  <div className="quick-tags-group">
+                    {NOISE_TYPES.map((tag) => (
+                      <button
+                        key={tag}
+                        type="button"
+                        className={`quick-tag-chip ${noiseTag === tag ? "active" : ""}`}
+                        onClick={() => {
+                          setNoiseTag(tag);
+                          setNotes(tag);
+                        }}
+                      >
+                        {tag}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
           </section>
-        )}
 
-        {/* Step 4: Photo Capture & Upload */}
-        <section className="form-card">
-          <div className="card-header">
-            <div className="card-title-group">
-              <span className="step-num">{isNoise ? "3" : "4"}</span>
-              <h2 className="card-title">Product Photos</h2>
-              <span className="card-subtitle-mr">(फोटो अपलोड करा)</span>
-            </div>
-          </div>
-
-          {/* Hidden inputs for camera and gallery */}
-          <input
-            type="file"
-            ref={fileInputRef}
-            style={{ display: "none" }}
-            multiple
-            accept="image/*"
-            onChange={(e) => handleFilesSelected(e.target.files)}
-          />
-          <input
-            type="file"
-            ref={cameraInputRef}
-            style={{ display: "none" }}
-            accept="image/*"
-            capture="environment"
-            onChange={(e) => handleFilesSelected(e.target.files)}
-          />
-
-          {/* Dropzone / Upload Area */}
-          <div
-            className={`upload-dropzone ${dragOver ? "dragover" : ""}`}
-            onDragOver={(e) => {
-              e.preventDefault();
-              setDragOver(true);
-            }}
-            onDragLeave={() => setDragOver(false)}
-            onDrop={(e) => {
-              e.preventDefault();
-              setDragOver(false);
-              handleFilesSelected(e.dataTransfer.files);
-            }}
-            onClick={() => fileInputRef.current?.click()}
-          >
-            <div className="upload-icon-circle">
-              <Camera size={26} />
-            </div>
-            <div>
-              <div className="upload-primary-text">
-                Tap to Take Photos or Browse Gallery
+          {/* Step 2: Product Details (Hidden if Noise) */}
+          {!isNoise ? (
+            <section className="form-card">
+              <div className="card-header">
+                <div className="card-title-group">
+                  <span className="step-num">2</span>
+                  <h2 className="card-title">Product Details</h2>
+                  <span className="card-subtitle-mr">(उत्पादनाची माहिती)</span>
+                </div>
               </div>
-              <div className="upload-secondary-text">
-                Auto-compresses high-res camera photos in browser for fast rural upload. (4–6 typical)
+
+              <div className="input-field-group">
+                <label className="field-label" htmlFor="prod-name">
+                  <span>
+                    Product Brand Name <span className="field-required-star">*</span>
+                  </span>
+                  <span className="field-optional">नाव (उदा. Coromandel Gromor 28-28-0)</span>
+                </label>
+                <input
+                  id="prod-name"
+                  type="text"
+                  className="text-input"
+                  placeholder="e.g. Coromandel Gromor 28-28-0"
+                  value={productName}
+                  onChange={(e) => setProductName(e.target.value)}
+                  required
+                />
               </div>
-            </div>
 
-            <div className="upload-button-row" onClick={(e) => e.stopPropagation()}>
-              <button
-                type="button"
-                className="btn-upload-action primary"
-                onClick={() => cameraInputRef.current?.click()}
-              >
-                <Camera size={16} />
-                Open Camera
-              </button>
-              <button
-                type="button"
-                className="btn-upload-action"
-                onClick={() => fileInputRef.current?.click()}
-              >
-                <ImageIcon size={16} />
-                Select Multiple Files
-              </button>
-            </div>
-          </div>
+              <div className="input-row-2col">
+                <div className="input-field-group">
+                  <label className="field-label" htmlFor="prod-mfg">
+                    <span>Manufacturer</span>
+                    <span className="field-optional">Optional</span>
+                  </label>
+                  <input
+                    id="prod-mfg"
+                    type="text"
+                    className="text-input"
+                    placeholder="e.g. Bayer, UPL, Syngenta, Mahyco"
+                    value={manufacturer}
+                    onChange={(e) => setManufacturer(e.target.value)}
+                  />
+                </div>
 
-          {/* Loading spinner while compressing */}
-          {isCompressing && (
-            <div style={{ textAlign: "center", padding: "16px", color: "var(--primary-700)" }}>
-              <RefreshCw className="spinner-ring" style={{ width: 28, height: 28, margin: "0 auto 8px" }} />
-              <div style={{ fontSize: "13.5px", fontWeight: 600 }}>Optimizing photos on device...</div>
-            </div>
+                <div className="input-field-group">
+                  <label className="field-label" htmlFor="prod-pack">
+                    <span>Pack Size</span>
+                    <span className="field-optional">Optional</span>
+                  </label>
+                  <input
+                    id="prod-pack"
+                    type="text"
+                    className="text-input"
+                    placeholder="e.g. 250ml, 500ml, 1kg, 50kg"
+                    value={packSize}
+                    onChange={(e) => setPackSize(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="input-field-group">
+                <label className="field-label" htmlFor="prod-reg">
+                  <span>Registration / CIB No.</span>
+                  <span className="field-optional">Optional (नोंदणी क्रमांक)</span>
+                </label>
+                <input
+                  id="prod-reg"
+                  type="text"
+                  className="text-input"
+                  placeholder="e.g. CIR-18239/2018 or Mfg Lic No"
+                  value={regNumber}
+                  onChange={(e) => setRegNumber(e.target.value)}
+                />
+              </div>
+
+              <div className="input-field-group">
+                <label className="field-label">
+                  <span>Packaging Physical Condition</span>
+                  <span className="field-optional">स्थिती</span>
+                </label>
+                <div className="condition-grid">
+                  {PACKAGING_CONDITIONS.map((cond) => {
+                    const isSelected = condition === cond.id;
+                    return (
+                      <button
+                        key={cond.id}
+                        type="button"
+                        className={`condition-pill ${isSelected ? "selected" : ""}`}
+                        onClick={() => setCondition(cond.id)}
+                      >
+                        <span
+                          className="condition-dot"
+                          style={{ background: cond.color }}
+                        />
+                        <div>
+                          <div className="condition-title">{cond.label}</div>
+                          <div className="condition-desc">{cond.desc}</div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </section>
+          ) : (
+            /* Noise Description input */
+            <section className="form-card">
+              <div className="card-header">
+                <div className="card-title-group">
+                  <span className="step-num">2</span>
+                  <h2 className="card-title">Noise Description</h2>
+                  <span className="card-subtitle-mr">(नमुन्याचे वर्णन)</span>
+                </div>
+              </div>
+              <div className="input-field-group">
+                <label className="field-label" htmlFor="noise-desc">
+                  <span>What does this noise photo represent?</span>
+                  <span className="field-optional">Optional</span>
+                </label>
+                <input
+                  id="noise-desc"
+                  type="text"
+                  className="text-input"
+                  placeholder="e.g. Blurry bottle rack, counter floor, hand in frame"
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                />
+              </div>
+            </section>
           )}
 
-          {/* Photo Preview Grid */}
-          {photos.length > 0 && (
-            <div>
-              <div className="photos-grid-header">
-                <span style={{ fontSize: "14px", fontWeight: 700 }}>Attached Photos</span>
-                <span className="photos-count-badge">
-                  {photos.length} photo{photos.length > 1 ? "s" : ""} ready
+        </div>
+
+        {/* Right Column: Guided Sequential Camera & Preview */}
+        <div className="form-col-camera">
+          <section className="form-card guided-capture-card">
+            <div className="card-header">
+              <div className="card-title-group">
+                <span className="step-num">3</span>
+                <h2 className="card-title">
+                  {isNoise ? "Negative Sample Photo" : "Guided Angle Capture"}
+                </h2>
+                <span className="card-subtitle-mr">
+                  {isNoise ? "(नमुना फोटो)" : "(कोनानुसार कॅमेरा)"}
                 </span>
               </div>
+            </div>
 
-              <div className="photos-grid">
-                {photos.map((photo, idx) => {
-                  const savings = Math.round(
-                    ((photo.originalSize - photo.compressedSize) / photo.originalSize) * 100
-                  );
-                  return (
-                    <div key={photo.id} className="photo-card">
-                      <div className="photo-thumb-wrap">
-                        <img
-                          src={photo.dataUrl}
-                          alt={`Uploaded ${idx + 1}`}
-                          className="photo-thumb-img"
-                        />
-                        <button
-                          type="button"
-                          className="photo-delete-btn"
-                          title="Remove photo"
-                          onClick={() => removePhoto(photo.id)}
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                        {savings > 0 && (
-                          <div className="photo-savings-pill">
-                            -{savings}% ({formatBytes(photo.compressedSize)})
-                          </div>
-                        )}
-                      </div>
+            <GuidedCameraCapture
+              isNoise={isNoise}
+              _photos={photos}
+              onPhotosChange={setPhotos}
+              resetTrigger={resetTrigger}
+              onOpenManual={() => setIsManualOpen(true)}
+            />
+          </section>
 
-                      <div className="photo-meta-bar">
-                        {!isNoise ? (
-                          <select
-                            className="photo-angle-select"
-                            value={photo.angle}
-                            onChange={(e) => updatePhotoAngle(photo.id, e.target.value)}
-                          >
-                            <option value="Front">Front Label</option>
-                            <option value="Side">Side Panel</option>
-                            <option value="Cap/Lid">Cap / Lid</option>
-                            <option value="Barcode">Barcode / QR</option>
-                            <option value="Back panel">Back Panel</option>
-                            <option value="Other">Other Angle</option>
-                          </select>
-                        ) : (
-                          <span style={{ fontSize: "11px", color: "var(--text-subtle)", fontWeight: 600 }}>
-                            Noise Photo #{idx + 1}
-                          </span>
-                        )}
+          {/* Error message banner */}
+          {submitError && (
+            <div className="error-banner">
+              <AlertCircle size={20} />
+              <span>{submitError}</span>
+            </div>
+          )}
+
+          {/* Recent Submissions List in this session */}
+          {sessionHistory.length > 0 && (
+            <div className="form-card session-history-card">
+              <h3 className="session-history-title">
+                <span>Recent Submissions</span>
+                <span className="session-history-count">{sessionHistory.length} saved</span>
+              </h3>
+              <div className="session-history-list">
+                {sessionHistory.map((item) => (
+                  <div key={item.id} className="session-history-item">
+                    <div className="session-item-info">
+                      <div className="session-item-name">{item.name}</div>
+                      <div className="session-item-meta">
+                        {item.category} • {item.photoCount} photos • {item.time}
                       </div>
                     </div>
-                  );
-                })}
+                    {item.folderUrl && (
+                      <a
+                        href={item.folderUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="session-item-link"
+                        title="Open Drive folder"
+                      >
+                        <FolderCheck size={16} />
+                      </a>
+                    )}
+                  </div>
+                ))}
               </div>
             </div>
           )}
-        </section>
-
-        {/* Error message banner */}
-        {submitError && (
-          <div
-            style={{
-              background: "#fef2f2",
-              border: "1px solid #f87171",
-              borderRadius: "12px",
-              padding: "14px",
-              color: "#991b1b",
-              fontSize: "13.5px",
-              display: "flex",
-              alignItems: "center",
-              gap: "10px"
-            }}
-          >
-            <AlertCircle size={20} />
-            <span>{submitError}</span>
-          </div>
-        )}
+        </div>
       </main>
 
       {/* --- Sticky Bottom Submit Bar --- */}
@@ -672,24 +513,33 @@ export default function App() {
         <div className="submit-inner-wrapper">
           <div className="submit-info-text">
             <span className="submit-count-label">
-              {photos.length} photo{photos.length !== 1 ? "s" : ""} selected
+              {isNoise
+                ? `${photos.length} photo${photos.length !== 1 ? "s" : ""} ready`
+                : `${photos.length} of 5 angles documented`}
             </span>
             <span className="submit-target-folder">
-              Target: Google Drive / AuRA Registry
+              Target Repository: Google Drive / Field Master Registry
             </span>
           </div>
 
           <button
             type="button"
             className="btn-primary-submit"
+            id="btn-submit-drive"
             disabled={!isValid() || isSubmitting}
             onClick={handleSubmit}
           >
             <Upload size={18} />
-            Submit to Drive
+            <span>Submit to Drive</span>
           </button>
         </div>
       </div>
+
+      {/* --- User Manual / Field Guidelines Modal --- */}
+      <UserManualModal
+        isOpen={isManualOpen}
+        onClose={() => setIsManualOpen(false)}
+      />
 
       {/* --- Uploading Modal Dialog --- */}
       {isSubmitting && (
@@ -747,7 +597,7 @@ export default function App() {
                 className="link-drive-folder"
               >
                 <FolderCheck size={16} />
-                Open Created Drive Folder
+                <span>Open Created Drive Folder</span>
                 <ExternalLink size={12} />
               </a>
             )}
@@ -757,7 +607,7 @@ export default function App() {
               className="btn-next-product"
               onClick={handleNextProduct}
             >
-              Submit Next Product
+              <span>Submit Next Product</span>
               <ChevronRight size={18} />
             </button>
           </div>

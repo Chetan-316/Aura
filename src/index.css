@@ -1,48 +1,75 @@
 /* ==========================================================================
-   AuRA Field Dataset Collection System - Global Design Tokens & Base Styles
-   Theme: Earthy Agricultural Modern (Deep Green, Sage, Wheat, Clean Off-White)
+   Agri-Product Dataset Collection System - Global Design Tokens & Base Styles
+   Theme: Agricultural Intelligence (Forest Deep, Botanical Sage, Canvas Sand, Terracotta)
    ========================================================================== */
 
 :root {
-  --primary-900: #0d281e;
-  --primary-800: #16382b;
-  --primary-700: #1b4332;
-  --primary-600: #2d6a4f;
-  --primary-500: #40916c;
-  --primary-400: #52b788;
-  --primary-100: #d8f3dc;
-  --primary-50:  #f0fdf4;
+  /* Brand Palette - Authoritative Agricultural Greens */
+  --primary-950: #0a1b14;
+  --primary-900: #0f271d;
+  --primary-800: #163a2b;
+  --primary-700: #1e4d3a;
+  --primary-600: #29684f;
+  --primary-500: #388567;
+  --primary-400: #4e9e7f;
+  --primary-200: #b9d8c3;
+  --primary-100: #d6e8dc;
+  --primary-50:  #f0f6f2;
 
+  /* Secondary & Accents */
+  --sage-50: #f4f7f4;
+  --sage-100: #e5ece6;
+  --sage-200: #ccdbce;
+  --sage-600: #4a6b57;
+  --sage-800: #2d4536;
+
+  --accent-terracotta: #c25e1a;
+  --accent-terracotta-bg: #fef5ee;
+  --accent-terracotta-border: #f6cbb0;
+  
   --accent-amber: #d97706;
-  --accent-amber-light: #fef3c7;
-  --accent-blue: #2563eb;
-  --accent-blue-light: #dbeafe;
-  --accent-red: #dc2626;
-  --accent-red-light: #fee2e2;
+  --accent-amber-bg: #fffbeb;
+  --accent-amber-border: #fde68a;
 
-  --bg-page: #f6f8f6;
+  --accent-red: #dc2626;
+  --accent-red-bg: #fef2f2;
+  --accent-red-border: #fecaca;
+
+  --accent-blue: #2563eb;
+  --accent-blue-bg: #eff6ff;
+
+  /* Neutrals & Surfaces */
+  --bg-page: #f7faf7;
   --bg-card: #ffffff;
-  --bg-subtle: #f0f4f1;
-  --border-card: #e2e8f0;
-  --border-focus: #2d6a4f;
+  --bg-card-subtle: #f8faf8;
+  --bg-dark: #090e17;
+
+  --border-card: #e0e7e1;
+  --border-subtle: #edf2ed;
+  --border-strong: #c5d2c7;
+  --border-focus: #1e4d3a;
 
   --text-main: #0f172a;
-  --text-muted: #475569;
+  --text-muted: #334155;
   --text-subtle: #64748b;
+  --text-light: #94a3b8;
   --text-inverse: #ffffff;
 
+  /* Radii & Shadows */
+  --radius-xs: 6px;
   --radius-sm: 8px;
   --radius-md: 12px;
   --radius-lg: 16px;
-  --radius-xl: 24px;
+  --radius-xl: 22px;
   --radius-full: 9999px;
 
-  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.04);
-  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.04);
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);
+  --shadow-md: 0 4px 10px -1px rgba(15, 23, 42, 0.06), 0 2px 4px -2px rgba(15, 23, 42, 0.03);
+  --shadow-lg: 0 12px 24px -4px rgba(15, 23, 42, 0.08), 0 4px 8px -4px rgba(15, 23, 42, 0.03);
+  --shadow-xl: 0 24px 36px -6px rgba(15, 23, 42, 0.12), 0 8px 12px -4px rgba(15, 23, 42, 0.04);
 
-  --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-display: 'Outfit', var(--font-sans);
 }
 
@@ -64,10 +91,10 @@ html, body {
   overflow-x: hidden;
 }
 
-/* Ensure inputs don't auto-zoom on mobile safari/chrome */
+/* Ensure form controls do not zoom in mobile browsers */
 input, select, textarea, button {
   font-family: inherit;
-  font-size: 16px;
+  font-size: 15px;
 }
 
 button {
@@ -77,7 +104,7 @@ button {
   user-select: none;
 }
 
-/* Subtle custom scrollbar */
+/* Polished scrollbars */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
