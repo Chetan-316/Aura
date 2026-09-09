@@ -12,7 +12,9 @@ import {
   Info,
   ShieldAlert,
   CameraOff,
-  HelpCircle
+  HelpCircle,
+  Trash2,
+  Plus
 } from "lucide-react";
 import { compressImage, formatBytes } from "../utils/compressor";
 
@@ -20,68 +22,73 @@ const PRODUCT_STEPS = [
   {
     id: "Front",
     label: "Front Label",
+    tabLabel: "Front Label",
+    tabSubtext: "Main Brand • 1 of 5",
     mr: "मुख्य बाजू",
     tip: "Full branding & product title",
-    guide: "Hold bottle/pack upright. Frame entire brand title, manufacturer logo, and active chemistry percentage."
+    guide: "Angle 1 of 5: Hold bottle/pack upright. Frame entire brand title, manufacturer logo, and active chemistry percentage.",
+    tooltip: "Angle 1 of 5: Front Label (मुख्य बाजू) — Full branding & product title"
   },
   {
     id: "Side",
-    label: "Side Panel",
+    label: "Side Panel (any one side clearly visible)",
+    tabLabel: "Side Panel",
+    tabSubtext: "Any 1 side visible • 2 of 5",
     mr: "बाजूचा भाग",
-    tip: "Dosage, batch, barcode",
-    guide: "Rotate 90°. Frame technical directions, crop dosage charts (ml/ha), toxicity triangle, and license."
+    tip: "Dosage chart, crop table & toxicity diamond",
+    guide: "Angle 2 of 5: Rotate 90°. Frame technical directions, crop dosage charts (ml/ha), toxicity triangle, and statutory license. Any one side clearly visible is sufficient — left or right.",
+    tooltip: "Angle 2 of 5: Side Panel (any one side clearly visible) (बाजूचा भाग) — Dosage chart, crop table & toxicity diamond"
   },
   {
     id: "Cap/Lid",
-    label: "Cap / Lid",
+    label: "Cap / Lid (Top Seal)",
+    tabLabel: "Cap / Lid",
+    tabSubtext: "Seal & ring • 3 of 5",
     mr: "झाकण / सील",
-    tip: "Seal color, brand embossing",
-    guide: "Shoot from 45° above. Capture tamper-evident foil seal, band color, and embossed brand logo on cap."
+    tip: "Seal color, brand embossing & tamper ring",
+    guide: "Angle 3 of 5: Shoot from 45° above. Capture tamper-evident foil seal, band color, and embossed brand logo on cap.",
+    tooltip: "Angle 3 of 5: Cap / Lid (झाकण / सील) — Tamper-evident foil seal, cap color & embossing"
   },
   {
     id: "Barcode",
-    label: "Barcode / QR",
+    label: "Barcode / QR (Close-up)",
+    tabLabel: "Barcode / QR",
+    tabSubtext: "Flat scan • 4 of 5",
     mr: "बारकोड",
     tip: "High-contrast close-up",
-    guide: "Get a sharp, glare-free close-up (10-15 cm). On flexible pouches, hold package flat to keep barcode straight."
+    guide: "Angle 4 of 5: Get a sharp, glare-free close-up (10-15 cm). On flexible pouches, hold package flat to keep barcode straight.",
+    tooltip: "Angle 4 of 5: Barcode / QR (बारकोड) — Flat, high-contrast close-up"
   },
   {
     id: "Back panel",
-    label: "Back / Composition",
+    label: "Back Panel (Angle 5 of 5)",
+    tabLabel: "Back Panel",
+    tabSubtext: "Angle 5 of 5",
     mr: "मागील रचना",
-    tip: "Chemical formulation & warning",
-    guide: "Frame ink-jet printed batch number, Mfg Date, Expiry date, MRP, and antidote medical warnings."
-  }
-];
-
-const NOISE_STEPS = [
-  {
-    id: "Noise Sample",
-    label: "Noise / Negative Sample",
-    mr: "निगेटिव्ह नमुना",
-    tip: "Non-product context",
-    guide: "Capture blur, empty shop racks, hand holding cash/keys, or unrelated store counter clutter."
+    tip: "Chemical formulation, concentration/dosage, statutory & batch text",
+    guide: "Angle 5 of 5: Frame chemical formulation, active concentration, dosage chart, statutory text, batch number, Mfg/Exp dates, and MRP.",
+    tooltip: "Angle 5 of 5: Back Panel (मागील रचना) — Chemical formulation, concentration, dosage, statutory & batch text"
   }
 ];
 
 export default function GuidedCameraCapture({
   isNoise = false,
-  _photos = [],
+  photos = [],
   onPhotosChange,
   resetTrigger = 0,
   onOpenManual
 }) {
-  const steps = isNoise ? NOISE_STEPS : PRODUCT_STEPS;
+  const steps = PRODUCT_STEPS;
   const totalSteps = steps.length;
 
   const [currentStepIdx, setCurrentStepIdx] = useState(0);
 
-  // STRICT SINGLE-VARIABLE CAMERA STATE MACHINE:
-  // 'idle'     : Camera inactive on step load / reset / retake (requires explicit "Open Camera" click)
-  // 'live'     : Camera stream active with viewfinder, reticle, flip, turn off, and shutter
-  // 'error'    : Camera permission denied or device unavailable (shows only clean error card + fallbacks)
-  // 'captured' : Photo taken for current angle, showing photo review with Retake / Next
-  // 'summary'  : All angles completed, showing review grid of all photos
+  // STRICT CAMERA STATE MACHINE:
+  // 'idle'     : Inactive on step load / reset / retake (requires explicit "Open Camera" click)
+  // 'live'     : Live camera stream active with viewfinder and shutter
+  // 'error'    : Camera permission denied / unavailable
+  // 'captured' : Photo taken for current product angle (review screen)
+  // 'summary'  : All 5 angles completed review grid
   const [cameraState, setCameraState] = useState(() => {
     const params = new URLSearchParams(window.location.search);
     const testParam = params.get("testState");
@@ -90,7 +97,7 @@ export default function GuidedCameraCapture({
     return "idle";
   });
 
-  // Map of angleId -> photo object
+  // Map of angleId -> photo object for 5-angle product flow
   const [capturedPhotos, setCapturedPhotos] = useState(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get("testState") === "captured") {
@@ -122,6 +129,56 @@ export default function GuidedCameraCapture({
     return {};
   });
 
+  // Noise list for rapid-fire multi-photo capture
+  const [noisePhotos, setNoisePhotos] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("testState") === "noise") {
+      const mockItems = [
+        { label: "Shop Counter Clutter", color: "#1e3a5f" },
+        { label: "Empty Shelf Rack", color: "#1e293b" },
+        { label: "Unrelated Box & Hand", color: "#334155" }
+      ];
+      return mockItems.map((item, idx) => {
+        const canvas = document.createElement("canvas");
+        canvas.width = 640;
+        canvas.height = 480;
+        const ctx = canvas.getContext("2d");
+        if (ctx) {
+          ctx.fillStyle = item.color;
+          ctx.fillRect(0, 0, 640, 480);
+          ctx.fillStyle = "#22c55e";
+          ctx.fillRect(16, 16, 608, 448);
+          ctx.fillStyle = "#0f172a";
+          ctx.font = "bold 26px sans-serif";
+          ctx.fillText(`Noise Sample #${idx + 1}`, 40, 180);
+          ctx.font = "20px sans-serif";
+          ctx.fillText(item.label, 40, 230);
+          ctx.font = "14px sans-serif";
+          ctx.fillText("AuRA Field Data Collection • Negative / Noise Sample", 40, 280);
+        }
+        const dataUrl = canvas.toDataURL ? canvas.toDataURL("image/jpeg", 0.82) : "";
+        return {
+          dataUrl,
+          compressedSize: 45000 + idx * 3800,
+          originalName: `noise_sample_${idx + 1}.jpg`,
+          mimeType: "image/jpeg",
+          angle: `Noise #${idx + 1}`,
+          base64: dataUrl.split(",")[1] || ""
+        };
+      });
+    }
+    return isNoise && photos && photos.length > 0 ? photos : [];
+  });
+  const [rapidFireToast, setRapidFireToast] = useState(null);
+
+  // Sync test mock noise photos to parent on mount if needed
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("testState") === "noise" && isNoise && noisePhotos.length > 0 && photos.length === 0) {
+      onPhotosChange(noisePhotos);
+    }
+  }, [isNoise, noisePhotos, onPhotosChange, photos.length]);
+
   // Camera hardware stream state
   const [streamActive, setStreamActive] = useState(false);
   const [cameraError, setCameraError] = useState(() => {
@@ -130,7 +187,7 @@ export default function GuidedCameraCapture({
       return {
         type: "NotAllowedError",
         message:
-          "Camera permission was blocked. Please allow camera permissions in your browser address bar/settings, or use the device camera button below."
+          "Camera permission was blocked. Please allow camera permissions in your browser address bar/settings, or use the Upload button below."
       };
     }
     return null;
@@ -141,13 +198,12 @@ export default function GuidedCameraCapture({
 
   const videoRef = useRef(null);
   const streamRef = useRef(null);
-  const fileFallbackRef = useRef(null);
-  const galleryInputRef = useRef(null);
+  const fileInputRef = useRef(null);
 
   const currentStep = steps[currentStepIdx] || steps[0];
   const currentCapturedPhoto = capturedPhotos[currentStep?.id];
 
-  // Stop camera stream safely & synchronously on every track
+  // Stop camera stream safely
   const stopStream = useCallback(() => {
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((track) => {
@@ -172,6 +228,7 @@ export default function GuidedCameraCapture({
       prevResetRef.current = resetTrigger;
       stopStream();
       setCapturedPhotos({});
+      setNoisePhotos([]);
       setCurrentStepIdx(0);
       setCameraError(null);
       setCameraState("idle");
@@ -188,6 +245,7 @@ export default function GuidedCameraCapture({
       setCameraError(null);
       setCameraState("idle");
       setCapturedPhotos({});
+      setNoisePhotos([]);
       onPhotosChange([]);
     }
   }, [isNoise, onPhotosChange, stopStream]);
@@ -225,8 +283,8 @@ export default function GuidedCameraCapture({
       setCameraError({
         type: "unsupported",
         message: isHttp
-          ? "Live camera stream requires HTTPS or localhost. Use the system camera or upload buttons below."
-          : "Live camera access is not supported in this browser. Use the system camera or upload buttons below."
+          ? "Live camera stream requires HTTPS or localhost. Use the Upload button below."
+          : "Live camera access is not supported in this browser. Use the Upload button below."
       });
       setCameraState("error");
       return;
@@ -244,8 +302,6 @@ export default function GuidedCameraCapture({
 
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
       streamRef.current = stream;
-
-      // Set live mode cleanly
       setCameraState("live");
 
       if (videoRef.current) {
@@ -263,9 +319,9 @@ export default function GuidedCameraCapture({
       let message = "Unable to access camera.";
       if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
         message =
-          "Camera permission was blocked. Please allow camera permissions in your browser address bar/settings, or use the device camera button below.";
+          "Camera permission was blocked. Please allow camera permissions in your browser address bar/settings, or use the Upload button below.";
       } else if (err.name === "NotFoundError" || err.name === "DevicesNotFoundError") {
-        message = "No camera hardware detected on this device. You can choose photos from your device.";
+        message = "No camera hardware detected on this device. You can choose photos using the Upload button.";
       } else if (err.name === "NotReadableError" || err.name === "TrackStartError") {
         message = "Camera is currently in use by another application. Please close other camera apps and retry.";
       }
@@ -274,12 +330,12 @@ export default function GuidedCameraCapture({
     }
   }, [facingMode, stopStream]);
 
-  // Handle explicit "Open Camera" click from user
+  // Handle explicit "Open Camera" click
   const handleUserOpenCamera = () => {
     startCamera();
   };
 
-  // Handle explicit "Turn Off Camera" click from user
+  // Handle explicit "Turn Off / Done" click
   const handleUserCloseCamera = () => {
     stopStream();
     setCameraState("idle");
@@ -335,11 +391,27 @@ export default function GuidedCameraCapture({
       const ctx = canvas.getContext("2d");
       ctx.drawImage(video, 0, 0, width, height);
 
-      const compressed = await processCanvasCapture(canvas, currentStep.id);
+      if (isNoise) {
+        // Multi-photo rapid fire capture for noise
+        const nextIndex = noisePhotos.length + 1;
+        const photoTag = `Noise #${nextIndex}`;
+        const compressed = await processCanvasCapture(canvas, photoTag);
 
-      if (compressed) {
-        stopStream();
-        saveCapturedPhoto(compressed);
+        if (compressed) {
+          const updated = [...noisePhotos, compressed];
+          setNoisePhotos(updated);
+          onPhotosChange(updated);
+          setRapidFireToast(`Photo #${updated.length} captured! Snap another or tap Done.`);
+          setTimeout(() => setRapidFireToast(null), 2200);
+          // Stream stays active so user can rapid-fire snap multiple photos!
+        }
+      } else {
+        // 5-Angle single step capture
+        const compressed = await processCanvasCapture(canvas, currentStep.id);
+        if (compressed) {
+          stopStream();
+          saveCapturedPhoto(compressed);
+        }
       }
     } catch (err) {
       console.error("Snapshot failed:", err);
@@ -348,27 +420,42 @@ export default function GuidedCameraCapture({
     }
   };
 
-  // Fallback handler: Native file input (system camera or gallery)
+  // Single fallback file handler (Upload button handles 1 or multiple files)
   const handleFallbackFileInput = async (fileList) => {
     if (!fileList || fileList.length === 0) return;
     setIsCapturing(true);
 
     try {
-      const file = fileList[0];
-      const compressed = await compressImage(file, 1600, 0.82);
-      compressed.angle = currentStep.id;
-      stopStream();
-      saveCapturedPhoto(compressed);
+      if (isNoise) {
+        // Multi-file upload for noise
+        const newItems = [];
+        for (let i = 0; i < fileList.length; i++) {
+          const file = fileList[i];
+          const photoTag = `Noise #${noisePhotos.length + newItems.length + 1}`;
+          const compressed = await compressImage(file, 1600, 0.82);
+          compressed.angle = photoTag;
+          newItems.push(compressed);
+        }
+        const updated = [...noisePhotos, ...newItems];
+        setNoisePhotos(updated);
+        onPhotosChange(updated);
+      } else {
+        // Product angle single file upload
+        const file = fileList[0];
+        const compressed = await compressImage(file, 1600, 0.82);
+        compressed.angle = currentStep.id;
+        stopStream();
+        saveCapturedPhoto(compressed);
+      }
     } catch (err) {
-      console.error("Fallback capture failed:", err);
+      console.error("Fallback upload failed:", err);
     } finally {
       setIsCapturing(false);
-      if (fileFallbackRef.current) fileFallbackRef.current.value = "";
-      if (galleryInputRef.current) galleryInputRef.current.value = "";
+      if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
 
-  // Store photo in state and sync with parent form
+  // Store photo in state and sync with parent form (Product flow)
   const saveCapturedPhoto = (photoObj) => {
     stopStream();
     const updated = {
@@ -386,7 +473,6 @@ export default function GuidedCameraCapture({
   };
 
   // Action: Retake current photo
-  // Camera MUST remain inactive/closed by default; user explicitly taps "Open Camera"
   const handleRetakeCurrent = () => {
     stopStream();
     const updated = { ...capturedPhotos };
@@ -402,7 +488,6 @@ export default function GuidedCameraCapture({
   };
 
   // Action: Advance to next step or summary
-  // Camera MUST remain inactive/closed by default on every step change; no auto-start!
   const handleNextStep = () => {
     stopStream();
     if (currentStepIdx < totalSteps - 1) {
@@ -416,7 +501,6 @@ export default function GuidedCameraCapture({
         setCameraState("idle");
       }
     } else {
-      // Completed all angles! Show summary screen
       setCameraState("summary");
     }
   };
@@ -440,15 +524,53 @@ export default function GuidedCameraCapture({
     }
   };
 
-  const capturedCount = Object.keys(capturedPhotos).length;
+  // Delete an individual noise photo
+  const handleDeleteNoisePhoto = (indexToDelete) => {
+    const updated = noisePhotos
+      .filter((_, idx) => idx !== indexToDelete)
+      .map((item, idx) => ({
+        ...item,
+        angle: `Noise #${idx + 1}`
+      }));
+    setNoisePhotos(updated);
+    onPhotosChange(updated);
+  };
+
+  const capturedCount = isNoise
+    ? noisePhotos.length
+    : Object.keys(capturedPhotos).length;
 
   return (
     <div className="guided-camera-container">
+      {/* 1. UPFRONT 5-ANGLE SUMMARY BANNER (Shown for Product flow) */}
+      {!isNoise && (
+        <div className="angle-sequence-summary-bar" id="angle-sequence-summary">
+          <div className="sequence-summary-badge">5 Angles</div>
+          <span className="sequence-summary-text">
+            You'll capture 5 photos: <strong>Front Label</strong> → <strong>Side Panel (any 1 side)</strong> → <strong>Cap/Lid</strong> → <strong>Barcode</strong> → <strong>Back Panel (5 of 5)</strong>
+          </span>
+        </div>
+      )}
+
+      {/* Upfront Info Banner for Noise mode */}
+      {isNoise && (
+        <div className="noise-sequence-summary-bar" id="noise-sequence-summary">
+          <div className="noise-summary-badge">Multi-Photo Noise</div>
+          <span className="noise-summary-text">
+            Capture or upload multiple non-product photos in one session: <strong>Counter clutter</strong> • <strong>Empty racks</strong> • <strong>Hands holding items</strong> • <strong>Unrelated cartons</strong>
+          </span>
+        </div>
+      )}
+
       {/* --- Step Indicator Header --- */}
       <div className="guided-step-header">
         <div className="step-progress-row">
           <div className="step-indicator-badge">
-            {cameraState === "summary" ? (
+            {isNoise ? (
+              <span className="step-pill active">
+                Noise / Negative Sample Mode
+              </span>
+            ) : cameraState === "summary" ? (
               <span className="step-pill summary">
                 <CheckCircle2 size={13} />
                 Summary Review
@@ -458,13 +580,20 @@ export default function GuidedCameraCapture({
                 Angle {currentStepIdx + 1} of {totalSteps}
               </span>
             )}
-            <span className="step-angle-title">{currentStep.label}</span>
-            <span className="step-angle-mr">({currentStep.mr})</span>
+
+            <span className="step-angle-title">
+              {isNoise ? "Rapid Multi-Photo Capture" : currentStep.label}
+            </span>
+            <span className="step-angle-mr">
+              ({isNoise ? "निगेटिव्ह नमुने" : currentStep.mr})
+            </span>
           </div>
 
           <div className="step-header-actions">
             <span className="step-counter-tag">
-              {capturedCount}/{totalSteps} captured
+              {isNoise
+                ? `${capturedCount} photo${capturedCount !== 1 ? "s" : ""} added`
+                : `${capturedCount}/${totalSteps} captured`}
             </span>
             {onOpenManual && (
               <button
@@ -481,118 +610,201 @@ export default function GuidedCameraCapture({
           </div>
         </div>
 
-        {/* Stepper Dots Bar */}
-        <div className="stepper-dots-bar">
-          {steps.map((step, idx) => {
-            const isCaptured = !!capturedPhotos[step.id];
-            const isCurrent = idx === currentStepIdx && cameraState !== "summary";
-            return (
-              <button
-                key={step.id}
-                type="button"
-                className={`step-dot-btn ${isCurrent ? "current" : ""} ${
-                  isCaptured ? "completed" : ""
-                }`}
-                onClick={() => handleJumpToStep(idx, isCaptured ? "captured" : "ready")}
-                title={`${step.label} (${step.mr})`}
-              >
-                <span className="dot-circle">
-                  {isCaptured ? <Check size={11} strokeWidth={3} /> : idx + 1}
-                </span>
-                <span className="dot-label">{step.id}</span>
-              </button>
-            );
-          })}
-        </div>
+        {/* Stepper Tabs (Shown for 5-angle product flow) */}
+        {!isNoise && (
+          <div className="stepper-dots-bar" role="tablist" aria-label="Angle capture steps">
+            {steps.map((step, idx) => {
+              const isCaptured = !!capturedPhotos[step.id];
+              const isCurrent = idx === currentStepIdx && cameraState !== "summary";
+              const fullStepTooltip = step.tooltip || `Angle ${idx + 1} of 5: ${step.label} (${step.mr})`;
+              return (
+                <button
+                  key={step.id}
+                  type="button"
+                  className={`step-dot-btn ${isCurrent ? "current" : ""} ${
+                    isCaptured ? "completed" : ""
+                  }`}
+                  onClick={() => handleJumpToStep(idx, isCaptured ? "captured" : "ready")}
+                  title={fullStepTooltip}
+                  aria-label={fullStepTooltip}
+                >
+                  <span className="dot-circle">
+                    {isCaptured ? <Check size={11} strokeWidth={3} /> : idx + 1}
+                  </span>
+                  <div className="dot-text-group">
+                    <span className="dot-label">{step.tabLabel}</span>
+                    <span className="dot-sublabel">{step.tabSubtext}</span>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        )}
 
-        {/* Angle Guidance Tip Box */}
+        {/* Live Guidance Tip Box */}
         {cameraState !== "summary" && (
           <div className="angle-guide-callout">
             <Info size={15} className="guide-icon" />
             <div className="guide-text-wrap">
-              <span className="guide-tip-strong">{currentStep.tip}: </span>
-              <span className="guide-tip-desc">{currentStep.guide}</span>
+              <span className="guide-tip-strong">
+                {isNoise ? "Rapid-fire capture" : currentStep.tip}:{" "}
+              </span>
+              <span className="guide-tip-desc">
+                {isNoise
+                  ? "Capture empty shop racks, counter clutter, hand holding cash/keys, or unrelated cartons. Snap or upload multiple photos repeatedly."
+                  : currentStep.guide}
+              </span>
             </div>
           </div>
         )}
       </div>
 
-      {/* Hidden native file inputs for fallback */}
+      {/* SINGLE HIDDEN FILE INPUT (Used by Upload button, supports multiple for noise) */}
       <input
         type="file"
-        ref={fileFallbackRef}
+        ref={fileInputRef}
         style={{ display: "none" }}
         accept="image/*"
-        capture="environment"
-        onChange={(e) => handleFallbackFileInput(e.target.files)}
-      />
-      <input
-        type="file"
-        ref={galleryInputRef}
-        style={{ display: "none" }}
-        accept="image/*"
+        multiple={isNoise}
         onChange={(e) => handleFallbackFileInput(e.target.files)}
       />
 
       {/* ==================================================================== */}
-      {/* STATE A: IDLE / NOT-YET-OPENED (MUTUALLY EXCLUSIVE)                 */}
-      {/* Never auto-starts getUserMedia. Requires user to click "Open Camera" */}
+      {/* STATE A: IDLE / READY SCREEN (EXACTLY TWO CHOICES: OPEN CAMERA & UPLOAD) */}
       {/* ==================================================================== */}
       {cameraState === "idle" && (
-        <div className="camera-ready-card" id="camera-idle-card">
-          <div className="ready-icon-container">
-            <Camera size={34} className="ready-camera-icon" />
-          </div>
+        isNoise && noisePhotos.length > 0 ? (
+          /* Multi-Photo Active Noise Dashboard */
+          <div className="noise-active-dashboard-card" id="noise-active-card">
+            <div className="noise-dashboard-header">
+              <div className="noise-status-group">
+                <div className="noise-status-badge">
+                  <CheckCircle2 size={16} />
+                  <span>{noisePhotos.length} Photo{noisePhotos.length !== 1 ? "s" : ""} Added</span>
+                </div>
+                <h3 className="noise-dashboard-title">Noise / Negative Dataset Samples</h3>
+                <p className="noise-dashboard-desc">
+                  Rapid-fire capture more non-product photos or upload additional files. Submit when you're done.
+                </p>
+              </div>
+            </div>
 
-          <div className="ready-text-group">
-            <h3 className="ready-title">
-              Ready to capture: {currentStep.label}
-            </h3>
-            <p className="ready-subtitle">
-              {currentStep.mr} • Position the bottle or packet and tap below to open camera preview.
-            </p>
-          </div>
-
-          <div className="ready-action-buttons">
-            <button
-              type="button"
-              className="btn-open-camera-primary"
-              id="btn-open-camera"
-              onClick={handleUserOpenCamera}
-            >
-              <Camera size={18} />
-              <span>Open Camera Preview</span>
-            </button>
-
-            <div className="ready-secondary-row">
+            {/* Exactly two clear primary/secondary buttons */}
+            <div className="ready-action-buttons noise-add-actions">
               <button
                 type="button"
-                className="btn-ready-secondary"
-                id="btn-system-camera"
-                onClick={() => fileFallbackRef.current?.click()}
-                title="Capture via system camera app"
+                className="btn-open-camera-primary"
+                id="btn-open-camera"
+                onClick={handleUserOpenCamera}
+                title="Open camera to snap more photos"
               >
-                <Camera size={15} />
-                <span>System Camera</span>
+                <Camera size={18} />
+                <span>Open Camera (Snap More)</span>
               </button>
+
               <button
                 type="button"
-                className="btn-ready-secondary"
+                className="btn-upload-file-secondary"
                 id="btn-upload-file"
-                onClick={() => galleryInputRef.current?.click()}
-                title="Upload image from gallery or storage"
+                onClick={() => fileInputRef.current?.click()}
+                title="Upload more photos from device"
               >
-                <Upload size={15} />
-                <span>Upload File</span>
+                <Upload size={18} />
+                <span>Upload More Photos</span>
+              </button>
+            </div>
+
+            {/* Noise Gallery Grid */}
+            <div className="noise-gallery-grid">
+              {noisePhotos.map((photo, index) => (
+                <div key={index} className="noise-photo-card">
+                  <div className="noise-thumb-wrap">
+                    <img
+                      src={photo.dataUrl}
+                      alt={`Noise sample ${index + 1}`}
+                      className="noise-thumb-img"
+                    />
+                    <button
+                      type="button"
+                      className="noise-delete-btn"
+                      onClick={() => handleDeleteNoisePhoto(index)}
+                      title={`Remove photo #${index + 1}`}
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                    <span className="noise-photo-num-badge">#{index + 1}</span>
+                  </div>
+                  <div className="noise-card-meta">
+                    <span className="noise-card-name">Noise #{index + 1}</span>
+                    <span className="noise-card-size">
+                      {formatBytes(photo.compressedSize)}
+                    </span>
+                  </div>
+                </div>
+              ))}
+
+              {/* Add Another Quick Tile */}
+              <div
+                className="noise-add-another-tile"
+                onClick={() => fileInputRef.current?.click()}
+                title="Click to upload or select another photo"
+              >
+                <Plus size={24} className="add-tile-icon" />
+                <span className="add-tile-text">Add Another</span>
+                <span className="add-tile-sub">Tap to Upload</span>
+              </div>
+            </div>
+          </div>
+        ) : (
+          /* Standard Ready Card for Product Flow or Empty Noise */
+          <div className="camera-ready-card" id="camera-idle-card">
+            <div className="ready-icon-container">
+              <Camera size={34} className="ready-camera-icon" />
+            </div>
+
+            <div className="ready-text-group">
+              <h3 className="ready-title">
+                {isNoise
+                  ? "Capture Noise / Negative Photos"
+                  : `Ready to capture: ${currentStep.label}`}
+              </h3>
+              <p className="ready-subtitle">
+                {isNoise
+                  ? "Add clutter, counter, or non-product photos to train the AI to reject false positives. Rapid-fire multiple photos in one session."
+                  : `${currentStep.mr} • Position the item and choose an option below.`}
+              </p>
+            </div>
+
+            {/* EXACTLY TWO CLEAR BUTTONS */}
+            <div className="ready-action-buttons">
+              <button
+                type="button"
+                className="btn-open-camera-primary"
+                id="btn-open-camera"
+                onClick={handleUserOpenCamera}
+                title="Open live camera preview"
+              >
+                <Camera size={18} />
+                <span>Open Camera</span>
+              </button>
+
+              <button
+                type="button"
+                className="btn-upload-file-secondary"
+                id="btn-upload-file"
+                onClick={() => fileInputRef.current?.click()}
+                title="Upload photo from device storage or gallery"
+              >
+                <Upload size={18} />
+                <span>Upload</span>
               </button>
             </div>
           </div>
-        </div>
+        )
       )}
 
       {/* ==================================================================== */}
-      {/* STATE B: LIVE ACTIVE CAMERA STREAM (MUTUALLY EXCLUSIVE)               */}
-      {/* Visible ONLY when stream is running. No error screens overlap.       */}
+      {/* STATE B: LIVE ACTIVE CAMERA STREAM                                   */}
       {/* ==================================================================== */}
       {cameraState === "live" && (
         <div className="camera-viewport-card" id="camera-live-card">
@@ -600,7 +812,11 @@ export default function GuidedCameraCapture({
           <div className="camera-feed-topbar">
             <div className="feed-angle-pill">
               <span className="live-pulse-dot" />
-              <span>{currentStep.label}</span>
+              <span>
+                {isNoise
+                  ? `Noise Capture (${noisePhotos.length} taken)`
+                  : currentStep.label}
+              </span>
             </div>
 
             <div className="feed-controls-group">
@@ -620,10 +836,10 @@ export default function GuidedCameraCapture({
                 className="camera-pill-btn close"
                 id="btn-close-camera"
                 onClick={handleUserCloseCamera}
-                title="Close Camera Stream"
+                title={isNoise ? "Finish snapping & review" : "Close Camera"}
               >
-                <CameraOff size={14} />
-                <span>Turn Off</span>
+                {isNoise ? <Check size={14} /> : <CameraOff size={14} />}
+                <span>{isNoise ? "Done" : "Turn Off"}</span>
               </button>
             </div>
           </div>
@@ -637,8 +853,16 @@ export default function GuidedCameraCapture({
               className={`camera-video-feed ${streamActive ? "active" : "hidden"}`}
             />
 
+            {/* Rapid-fire toast notification for Noise mode */}
+            {isNoise && rapidFireToast && (
+              <div className="noise-rapid-toast">
+                <CheckCircle2 size={15} />
+                <span>{rapidFireToast}</span>
+              </div>
+            )}
+
             {/* Viewfinder Target Framing Reticle */}
-            {streamActive && (
+            {streamActive && !isNoise && (
               <div className="viewfinder-overlay">
                 <div className="viewfinder-frame">
                   <div className="corner top-left" />
@@ -661,13 +885,14 @@ export default function GuidedCameraCapture({
             )}
           </div>
 
-          {/* Shutter Bar */}
+          {/* Shutter Bar: Center Shutter, Upload Fallback, No Native duplicate */}
           <div className="camera-shutter-bar">
             <button
               type="button"
               className="shutter-side-btn"
-              onClick={() => galleryInputRef.current?.click()}
-              title="Select photo from files"
+              id="btn-shutter-upload"
+              onClick={() => fileInputRef.current?.click()}
+              title="Upload photo from files"
             >
               <Upload size={17} />
               <span>Upload</span>
@@ -679,7 +904,7 @@ export default function GuidedCameraCapture({
               id="btn-shutter"
               onClick={handleSnapPhoto}
               disabled={isCapturing || !streamActive}
-              title={`Capture ${currentStep.label}`}
+              title={isNoise ? "Snap Noise Photo (Rapid-Fire)" : `Capture ${currentStep.label}`}
             >
               <div className="shutter-inner-ring">
                 {isCapturing ? (
@@ -690,22 +915,40 @@ export default function GuidedCameraCapture({
               </div>
             </button>
 
-            <button
-              type="button"
-              className="shutter-side-btn"
-              onClick={() => fileFallbackRef.current?.click()}
-              title="Open native camera app"
-            >
-              <Camera size={17} />
-              <span>Native</span>
-            </button>
+            {isNoise ? (
+              <button
+                type="button"
+                className="shutter-side-btn done"
+                onClick={handleUserCloseCamera}
+                title="Finish snapping noise photos"
+              >
+                <Check size={17} />
+                <span>Done</span>
+              </button>
+            ) : (
+              <div className="shutter-side-placeholder" />
+            )}
           </div>
+
+          {/* Noise photo thumbnail roll during live stream */}
+          {isNoise && noisePhotos.length > 0 && (
+            <div className="noise-live-strip">
+              <span className="strip-label">{noisePhotos.length} captured:</span>
+              <div className="strip-thumbs-container">
+                {noisePhotos.map((p, idx) => (
+                  <div key={idx} className="strip-thumb-wrap">
+                    <img src={p.dataUrl} alt={`Snap #${idx + 1}`} className="strip-thumb-img" />
+                    <span className="strip-thumb-num">#{idx + 1}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
       {/* ==================================================================== */}
-      {/* STATE C: PERMISSION DENIED / ERROR STATE (MUTUALLY EXCLUSIVE)        */}
-      {/* Completely clean card. ZERO video or viewfinder elements underneath  */}
+      {/* STATE C: ERROR STATE (SIMPLIFIED TO EXACTLY TWO CHOICES)              */}
       {/* ==================================================================== */}
       {cameraState === "error" && (
         <div className="camera-error-card" id="camera-error-card">
@@ -717,7 +960,7 @@ export default function GuidedCameraCapture({
             <h4 className="fallback-title">Camera Preview Unavailable</h4>
             <p className="fallback-desc">
               {cameraError?.message ||
-                "Camera permission was blocked or hardware is unavailable on this device. You can capture photos using your system camera or upload files."}
+                "Camera permission was blocked or hardware is unavailable. You can upload photos directly from your device."}
             </p>
           </div>
 
@@ -725,50 +968,39 @@ export default function GuidedCameraCapture({
             <button
               type="button"
               className="btn-fallback-action primary"
-              id="btn-fallback-device-camera"
-              onClick={() => fileFallbackRef.current?.click()}
+              id="btn-fallback-upload-file"
+              onClick={() => fileInputRef.current?.click()}
             >
-              <Camera size={17} />
-              <span>Take Photo with Device Camera</span>
+              <Upload size={17} />
+              <span>Upload Photo</span>
             </button>
 
             <button
               type="button"
-              className="btn-fallback-action secondary"
-              id="btn-fallback-upload-file"
-              onClick={() => galleryInputRef.current?.click()}
+              className="btn-retry-camera"
+              id="btn-retry-camera"
+              onClick={handleUserOpenCamera}
             >
-              <Upload size={17} />
-              <span>Upload Image File</span>
+              <RefreshCw size={14} />
+              <span>Retry Camera Permission</span>
             </button>
 
-            <div className="fallback-sub-actions">
-              <button
-                type="button"
-                className="btn-retry-camera"
-                id="btn-retry-camera"
-                onClick={handleUserOpenCamera}
-              >
-                <RefreshCw size={13} />
-                <span>Retry Camera Permission</span>
-              </button>
-              <button
-                type="button"
-                className="btn-cancel-error"
-                id="btn-cancel-camera"
-                onClick={() => setCameraState("idle")}
-              >
-                Back to Ready Screen
-              </button>
-            </div>
+            <button
+              type="button"
+              className="btn-cancel-error"
+              id="btn-cancel-camera"
+              onClick={() => setCameraState("idle")}
+            >
+              Back to Ready Screen
+            </button>
           </div>
         </div>
       )}
 
       {/* ==================================================================== */}
-      {/* STATE D: CAPTURED PHOTO REVIEW (MUTUALLY EXCLUSIVE)                 */}
+      {/* STATE D: CAPTURED PHOTO REVIEW (PRODUCT 5-ANGLE FLOW)                */}
       {/* ==================================================================== */}
-      {cameraState === "captured" && currentCapturedPhoto && (
+      {cameraState === "captured" && !isNoise && currentCapturedPhoto && (
         <div className="preview-viewport-card" id="camera-captured-card">
           <div className="preview-image-container">
             <img
@@ -779,7 +1011,9 @@ export default function GuidedCameraCapture({
             <div className="preview-badge-overlay">
               <div className="preview-angle-tag">
                 <Check size={13} />
-                <span>{currentStep.label} ({currentStep.mr})</span>
+                <span>
+                  {currentStep.label} ({currentStep.mr})
+                </span>
               </div>
               <div className="preview-size-tag">
                 {formatBytes(currentCapturedPhoto.compressedSize)}
@@ -807,7 +1041,7 @@ export default function GuidedCameraCapture({
             >
               {currentStepIdx < totalSteps - 1 ? (
                 <>
-                  <span>Next: {steps[currentStepIdx + 1]?.id}</span>
+                  <span>Next: {steps[currentStepIdx + 1]?.tabLabel || steps[currentStepIdx + 1]?.label}</span>
                   <ChevronRight size={18} />
                 </>
               ) : (
@@ -822,15 +1056,15 @@ export default function GuidedCameraCapture({
       )}
 
       {/* ==================================================================== */}
-      {/* STATE E: SUMMARY SCREEN (ALL ANGLES REVIEW) (MUTUALLY EXCLUSIVE)    */}
+      {/* STATE E: SUMMARY SCREEN (ALL 5 ANGLES REVIEW)                        */}
       {/* ==================================================================== */}
-      {cameraState === "summary" && (
+      {cameraState === "summary" && !isNoise && (
         <div className="summary-viewport-card" id="camera-summary-card">
           <div className="summary-status-banner">
             <CheckCircle2 size={22} className="summary-banner-icon" />
             <div>
               <h4 className="summary-banner-title">
-                {isNoise ? "Noise Sample Captured" : "All 5 Angles Documented!"}
+                All 5 Angles Documented!
               </h4>
               <p className="summary-banner-desc">
                 Review your dataset photos below. Verify that labels and barcodes are sharp and glare-free before final submission.
@@ -861,7 +1095,10 @@ export default function GuidedCameraCapture({
 
                   <div className="summary-meta-row">
                     <div className="summary-meta-texts">
-                      <div className="summary-meta-title">{step.label}</div>
+                      <div className="summary-meta-title">
+                        {step.label}
+                        {idx === 4 && <span className="summary-angle-tag-inline"> (Angle 5 of 5)</span>}
+                      </div>
                       <div className="summary-meta-sub">{step.mr}</div>
                       {photo && (
                         <div className="summary-meta-size">

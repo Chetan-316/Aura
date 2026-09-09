@@ -25,7 +25,11 @@ import "./App.css";
 
 export default function App() {
   // --- Form State ---
-  const [category, setCategory] = useState("Pesticide");
+  const [category, setCategory] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("testState") === "noise") return "Not a Product — Noise";
+    return "Pesticide";
+  });
   const [productName, setProductName] = useState("");
   const [regNumber, setRegNumber] = useState("");
   const [manufacturer, setManufacturer] = useState("");
@@ -35,7 +39,19 @@ export default function App() {
   const [noiseTag, setNoiseTag] = useState("");
 
   // --- Photos State (Managed sequentially via GuidedCameraCapture) ---
-  const [photos, setPhotos] = useState([]);
+  const [photos, setPhotos] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("testState") === "noise") {
+      const mockLabels = ["Shop Counter Clutter", "Empty Shelf Rack", "Unrelated Box & Hand"];
+      return mockLabels.map((lbl, idx) => ({
+        originalName: `noise_sample_${idx + 1}.jpg`,
+        mimeType: "image/jpeg",
+        angle: `Noise #${idx + 1}`,
+        compressedSize: 45000 + idx * 3800
+      }));
+    }
+    return [];
+  });
   const [resetTrigger, setResetTrigger] = useState(0);
 
   // --- Network & Session State ---
@@ -87,7 +103,7 @@ export default function App() {
     setUploadProgress(20);
 
     const finalAngles = isNoise
-      ? ["Noise"]
+      ? photos.map((_, i) => `Noise #${i + 1}`)
       : photos.map((p) => p.angle || "Angle");
     const finalProductName = isNoise
       ? (noiseTag || notes || "Noise Negative Sample")
@@ -102,10 +118,10 @@ export default function App() {
       condition: isNoise ? "" : condition,
       angles: finalAngles,
       notes: isNoise ? (notes || noiseTag) : notes.trim(),
-      photos: photos.map((p) => ({
-        name: p.originalName,
-        type: p.mimeType,
-        angle: p.angle,
+      photos: photos.map((p, idx) => ({
+        name: p.originalName || (isNoise ? `noise_${idx + 1}.jpg` : `photo_${idx + 1}.jpg`),
+        type: p.mimeType || "image/jpeg",
+        angle: isNoise ? `Noise #${idx + 1}` : (p.angle || `Angle_${idx + 1}`),
         base64: p.base64
       }))
     };
@@ -448,17 +464,17 @@ export default function App() {
               <div className="card-title-group">
                 <span className="step-num">3</span>
                 <h2 className="card-title">
-                  {isNoise ? "Negative Sample Photo" : "Guided Angle Capture"}
+                  {isNoise ? "Negative Sample Photos" : "Guided Angle Capture"}
                 </h2>
                 <span className="card-subtitle-mr">
-                  {isNoise ? "(नमुना फोटो)" : "(कोनानुसार कॅमेरा)"}
+                  {isNoise ? "(नमुने फोटो)" : "(कोनानुसार कॅमेरा)"}
                 </span>
               </div>
             </div>
 
             <GuidedCameraCapture
               isNoise={isNoise}
-              _photos={photos}
+              photos={photos}
               onPhotosChange={setPhotos}
               resetTrigger={resetTrigger}
               onOpenManual={() => setIsManualOpen(true)}
