@@ -18,56 +18,61 @@ import {
 } from "lucide-react";
 import { compressImage, formatBytes } from "../utils/compressor";
 
-const PRODUCT_STEPS = [
+const PRODUCT_STEPS_FALLBACK = [
   {
     id: "Front",
-    label: "Front Label",
-    tabLabel: "Front Label",
-    tabSubtext: "Main brand",
-    mr: "मुख्य बाजू",
-    tip: "Brand & product name",
+    label: "Front Side",
+    tabLabel: "Front",
+    tabSubtext: "Main label",
+    mr: "पुढील बाजू",
+    tip: "Full branding & product title",
     guide: "Hold bottle/pack upright. Frame entire brand title, manufacturer logo, and active ingredients.",
-    tooltip: "Angle 1 of 5: Front Label — Full branding & product title"
+    tooltip: "Angle 1: Front Side — Full branding & product title",
+    required: true
   },
   {
-    id: "Side",
-    label: "Side Panel",
-    tabLabel: "Side Panel",
-    tabSubtext: "Any 1 side",
-    mr: "बाजूचा भाग",
-    tip: "Dosage & toxicity info",
-    guide: "Rotate 90°. Frame dosage chart, directions, and toxicity triangle. Either side is fine.",
-    tooltip: "Angle 2 of 5: Side Panel — Dosage chart & toxicity triangle"
+    id: "Right",
+    label: "Right Side",
+    tabLabel: "Right",
+    tabSubtext: "Dosage info",
+    mr: "उजवी बाजू",
+    tip: "Dosage & usage instructions",
+    guide: "Rotate 90° right. Frame dosage chart, directions, and toxicity triangle.",
+    tooltip: "Angle 2: Right Side — Dosage chart & directions",
+    required: true
   },
   {
-    id: "Cap/Lid",
-    label: "Cap / Lid",
-    tabLabel: "Cap / Lid",
-    tabSubtext: "Top seal",
-    mr: "झाकण / सील",
-    tip: "Seal & cap details",
-    guide: "Shoot from 45° above. Capture tamper-evident foil seal, band color, and embossed logo on lid.",
-    tooltip: "Angle 3 of 5: Cap / Lid — Tamper seal, color & embossing"
+    id: "Left",
+    label: "Left Side",
+    tabLabel: "Left",
+    tabSubtext: "Cautions",
+    mr: "डावी बाजू",
+    tip: "Additional cautions & info panel",
+    guide: "Rotate to the left side. Capture any additional info or caution panels.",
+    tooltip: "Angle 3: Left Side — Additional info & cautions",
+    required: true
+  },
+  {
+    id: "Back",
+    label: "Back Side",
+    tabLabel: "Back",
+    tabSubtext: "Composition",
+    mr: "मागील बाजू",
+    tip: "Chemical formulation & warning label",
+    guide: "Frame the back panel: chemical formula, batch number, Mfg/Exp dates, MRP ₹.",
+    tooltip: "Angle 4: Back Side — Formulation, batch & warning",
+    required: true
   },
   {
     id: "Barcode",
     label: "Barcode / QR",
-    tabLabel: "Barcode / QR",
+    tabLabel: "Barcode",
     tabSubtext: "Close-up",
     mr: "बारकोड",
-    tip: "Sharp barcode code",
-    guide: "Get a sharp close-up (10-15 cm). On flexible pouches, hold flat so barcode lines are straight.",
-    tooltip: "Angle 4 of 5: Barcode / QR — High-contrast scan"
-  },
-  {
-    id: "Back panel",
-    label: "Back Panel",
-    tabLabel: "Back Panel",
-    tabSubtext: "Batch & MRP",
-    mr: "मागील रचना",
-    tip: "Batch, dates & price",
-    guide: "Frame back text: chemical formula, batch number, Mfg/Exp dates, and MRP ₹.",
-    tooltip: "Angle 5 of 5: Back Panel — Formulation, batch & dates"
+    tip: "High-contrast close-up, avoid glare",
+    guide: "Get a sharp close-up (10–15 cm). On flexible pouches, hold flat so barcode lines are straight.",
+    tooltip: "Angle 5: Barcode / QR — High-contrast scan",
+    required: false
   }
 ];
 
@@ -76,9 +81,15 @@ export default function GuidedCameraCapture({
   photos = [],
   onPhotosChange,
   resetTrigger = 0,
-  onOpenManual
+  onOpenManual,
+  photoAngles,
+  packagingType = "Bottle",
+  packagingLabel = "Bottle / Container"
 }) {
-  const steps = PRODUCT_STEPS;
+  // Use the dynamic photoAngles prop if provided, fall back to hardcoded steps
+  const steps = (!isNoise && photoAngles && photoAngles.length > 0)
+    ? photoAngles
+    : PRODUCT_STEPS_FALLBACK;
   const totalSteps = steps.length;
 
   const [currentStepIdx, setCurrentStepIdx] = useState(0);
@@ -606,11 +617,34 @@ export default function GuidedCameraCapture({
 
   return (
     <div className="guided-camera-container">
-      {/* 1. UPFRONT 5-ANGLE SUMMARY BANNER (Shown initially before capture starts) */}
+      {/* Packaging type context badge (shown above sequence bar for product flow) */}
+      {!isNoise && (
+        <div className="packaging-context-badge">
+          <span className="pkg-badge-icon">
+            {packagingType === "Bottle" ? "🍶" : "📦"}
+          </span>
+          <span className="pkg-badge-text">
+            {packagingLabel}
+          </span>
+          <span className="pkg-badge-count">
+            {steps.filter(s => s.required).length} required
+            {steps.some(s => !s.required) ? ` + ${steps.filter(s => !s.required).length} optional` : ""}
+          </span>
+        </div>
+      )}
+
+      {/* 1. UPFRONT SEQUENCE SUMMARY BANNER (Shown initially before capture starts) */}
       {!isNoise && capturedCount === 0 && (
         <div className="angle-sequence-summary-bar" id="angle-sequence-summary">
           <span className="sequence-summary-text">
-            5 Photos: <strong>1. Front</strong> → <strong>2. Side</strong> → <strong>3. Cap/Lid</strong> → <strong>4. Barcode</strong> → <strong>5. Back</strong>
+            {steps.length} Photos:{" "}
+            {steps.map((s, i) => (
+              <span key={s.id}>
+                {i > 0 && <span style={{margin: "0 3px", opacity: 0.5}}>→</span>}
+                <strong>{i + 1}. {s.tabLabel}</strong>
+                {!s.required && <span style={{fontSize:"9px",opacity:0.7}}> (opt)</span>}
+              </span>
+            ))}
           </span>
         </div>
       )}
@@ -677,24 +711,34 @@ export default function GuidedCameraCapture({
           <div className="stepper-dots-bar" role="tablist" aria-label="Angle capture steps">
             {steps.map((step, idx) => {
               const isCaptured = !!capturedPhotos[step.id];
+              const isSkipped = capturedPhotos[step.id]?.skipped === true;
               const isCurrent = idx === currentStepIdx && cameraState !== "summary";
-              const fullStepTooltip = step.tooltip || `Angle ${idx + 1} of 5: ${step.label} (${step.mr})`;
+              const fullStepTooltip = step.tooltip || `Angle ${idx + 1} of ${totalSteps}: ${step.label} (${step.mr})`;
               return (
                 <button
                   key={step.id}
                   type="button"
                   className={`step-dot-btn ${isCurrent ? "current" : ""} ${
-                    isCaptured ? "completed" : ""
-                  }`}
+                    isCaptured ? (isSkipped ? "skipped" : "completed") : ""
+                  }${!step.required ? " optional-step" : ""}`}
                   onClick={() => handleJumpToStep(idx, isCaptured ? "captured" : "ready")}
                   title={fullStepTooltip}
                   aria-label={fullStepTooltip}
                 >
                   <span className="dot-circle">
-                    {isCaptured ? <Check size={11} strokeWidth={3} /> : idx + 1}
+                    {isSkipped ? (
+                      <span style={{fontSize: "9px", opacity: 0.7}}>skip</span>
+                    ) : isCaptured ? (
+                      <Check size={11} strokeWidth={3} />
+                    ) : (
+                      idx + 1
+                    )}
                   </span>
                   <div className="dot-text-group">
-                    <span className="dot-label">{step.tabLabel}</span>
+                    <span className="dot-label">
+                      {step.tabLabel}
+                      {!step.required && <span className="dot-optional-tag"> opt</span>}
+                    </span>
                     <span className="dot-sublabel">{step.tabSubtext}</span>
                   </div>
                 </button>
@@ -835,9 +879,15 @@ export default function GuidedCameraCapture({
                   ? "Add clutter, counter, or non-product photos to train the AI to reject false positives. Rapid-fire multiple photos in one session."
                   : `${currentStep.mr} • Position the item and choose an option below.`}
               </p>
+              {!isNoise && !currentStep.required && (
+                <div className="optional-angle-notice">
+                  <Info size={13} />
+                  <span>This angle is <strong>optional</strong>. Capture it if the barcode is visible, or skip to continue.</span>
+                </div>
+              )}
             </div>
 
-            {/* EXACTLY TWO CLEAR BUTTONS */}
+            {/* EXACTLY TWO CLEAR BUTTONS + OPTIONAL SKIP */}
             <div className="ready-action-buttons">
               <button
                 type="button"
@@ -861,6 +911,34 @@ export default function GuidedCameraCapture({
                 <span>Upload</span>
               </button>
             </div>
+
+            {/* Skip button — only shown for optional angles */}
+            {!isNoise && !currentStep.required && (
+              <button
+                type="button"
+                className="btn-skip-optional"
+                id="btn-skip-optional-angle"
+                onClick={() => {
+                  // Mark as skipped and advance
+                  const skippedEntry = { skipped: true, angle: currentStep.id, dataUrl: null, compressedSize: 0 };
+                  const updated = { ...capturedPhotos, [currentStep.id]: skippedEntry };
+                  setCapturedPhotos(updated);
+                  // Only push non-skipped photos to parent
+                  const orderedList = steps.map(s => updated[s.id]).filter(p => p && !p.skipped);
+                  onPhotosChange(orderedList);
+                  if (currentStepIdx < totalSteps - 1) {
+                    setCurrentStepIdx(currentStepIdx + 1);
+                    const nextId = steps[currentStepIdx + 1].id;
+                    setCameraState(capturedPhotos[nextId] ? "captured" : "idle");
+                  } else {
+                    setCameraState("summary");
+                  }
+                }}
+              >
+                <ChevronRight size={15} />
+                <span>Skip — Barcode Not Visible</span>
+              </button>
+            )}
           </div>
         )
       )}
@@ -1149,7 +1227,9 @@ export default function GuidedCameraCapture({
             <CheckCircle2 size={22} className="summary-banner-icon" />
             <div>
               <h4 className="summary-banner-title">
-                All 5 Angles Documented!
+                {steps.filter(s => s.required).every(s => capturedPhotos[s.id] && !capturedPhotos[s.id].skipped)
+                  ? `All ${steps.length} Angles Documented!`
+                  : `${Object.values(capturedPhotos).filter(p => p && !p.skipped).length} of ${steps.length} Angles Captured`}
               </h4>
               <p className="summary-banner-desc">
                 Review your dataset photos below. Verify that labels and barcodes are sharp and glare-free before final submission.
@@ -1160,35 +1240,51 @@ export default function GuidedCameraCapture({
           <div className="summary-grid">
             {steps.map((step, idx) => {
               const photo = capturedPhotos[step.id];
+              const isSkipped = photo?.skipped === true;
               return (
-                <div key={step.id} className="summary-angle-card">
+                <div key={step.id} className={`summary-angle-card ${isSkipped ? "skipped" : ""}`}>
                   <div className="summary-thumb-wrap">
-                    {photo ? (
+                    {photo && !isSkipped ? (
                       <img
                         src={photo.dataUrl}
                         alt={step.label}
                         className="summary-thumb-img"
                       />
                     ) : (
-                      <div className="summary-thumb-empty">
-                        <Camera size={22} />
-                        <span>Missing</span>
+                      <div className={`summary-thumb-empty ${isSkipped ? "was-skipped" : ""}`}>
+                        {isSkipped ? (
+                          <>
+                            <ChevronRight size={18} style={{opacity: 0.4}} />
+                            <span>Skipped</span>
+                          </>
+                        ) : (
+                          <>
+                            <Camera size={22} />
+                            <span>Missing</span>
+                          </>
+                        )}
                       </div>
                     )}
                     <span className="summary-step-number">{idx + 1}</span>
+                    {!step.required && (
+                      <span className="summary-optional-badge">opt</span>
+                    )}
                   </div>
 
                   <div className="summary-meta-row">
                     <div className="summary-meta-texts">
                       <div className="summary-meta-title">
                         {step.label}
-                        {idx === 4 && <span className="summary-angle-tag-inline"> (Angle 5 of 5)</span>}
+                        <span className="summary-angle-tag-inline"> (Angle {idx + 1} of {steps.length})</span>
                       </div>
                       <div className="summary-meta-sub">{step.mr}</div>
-                      {photo && (
+                      {photo && !isSkipped && (
                         <div className="summary-meta-size">
                           {formatBytes(photo.compressedSize)}
                         </div>
+                      )}
+                      {isSkipped && (
+                        <div className="summary-meta-skipped">Skipped — not captured</div>
                       )}
                     </div>
 
@@ -1199,7 +1295,7 @@ export default function GuidedCameraCapture({
                       title={`Retake ${step.label}`}
                     >
                       <RotateCcw size={13} />
-                      <span>Retake</span>
+                      <span>{isSkipped ? "Capture" : "Retake"}</span>
                     </button>
                   </div>
                 </div>

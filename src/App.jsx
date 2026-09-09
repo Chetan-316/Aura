@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import {
   API_ENDPOINT,
   CATEGORIES,
+  PACKAGING_TYPES,
   PACKAGING_CONDITIONS,
   NOISE_TYPES
 } from "./config";
@@ -19,7 +20,9 @@ import {
   FlaskConical,
   Wheat,
   Sprout,
-  Ban
+  Ban,
+  Package,
+  FlaskConical as Flask
 } from "lucide-react";
 import "./App.css";
 
@@ -37,6 +40,7 @@ export default function App() {
   const [condition, setCondition] = useState("New/Clean");
   const [notes, setNotes] = useState("");
   const [noiseTag, setNoiseTag] = useState("");
+  const [packagingType, setPackagingType] = useState("Bottle");
 
   // --- Photos State (Managed sequentially via GuidedCameraCapture) ---
   const [photos, setPhotos] = useState(() => {
@@ -72,6 +76,10 @@ export default function App() {
   const [submitError, setSubmitError] = useState(null);
 
   const isNoise = category.includes("Noise") || category.includes("Not a Product");
+
+  // Derive photo angles from the selected packaging type
+  const currentPackaging = PACKAGING_TYPES.find((p) => p.id === packagingType) || PACKAGING_TYPES[0];
+  const currentPhotoAngles = currentPackaging.photoAngles;
 
   // Track online status
   useEffect(() => {
@@ -112,6 +120,7 @@ export default function App() {
     const payload = {
       category: category,
       productName: finalProductName,
+      packagingType: isNoise ? "" : packagingType,
       regNumber: isNoise ? "" : regNumber.trim(),
       manufacturer: isNoise ? "" : manufacturer.trim(),
       packSize: isNoise ? "" : packSize.trim(),
@@ -183,6 +192,7 @@ export default function App() {
     setCondition("New/Clean");
     setNotes("");
     setNoiseTag("");
+    setPackagingType("Bottle");
     setPhotos([]);
     setResetTrigger((prev) => prev + 1);
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -199,6 +209,18 @@ export default function App() {
         return <Sprout size={20} />;
       default:
         return <Ban size={20} />;
+    }
+  };
+
+  // Packaging Type Icon Helper
+  const getPackagingIcon = (pkgId) => {
+    switch (pkgId) {
+      case "Bottle":
+        return <Flask size={22} />;
+      case "Pouch":
+        return <Package size={22} />;
+      default:
+        return <Package size={22} />;
     }
   };
 
@@ -312,12 +334,68 @@ export default function App() {
             )}
           </section>
 
-          {/* Step 2: Product Details (Hidden if Noise) */}
-          {!isNoise ? (
+          {/* Step 2: Packaging Type Selector (Hidden if Noise) */}
+          {!isNoise && (
             <section className="form-card">
               <div className="card-header">
                 <div className="card-title-group">
                   <span className="step-num">2</span>
+                  <h2 className="card-title">Packaging Type</h2>
+                  <span className="card-subtitle-mr">(पॅकेजिंगचा प्रकार)</span>
+                </div>
+              </div>
+
+              <div className="packaging-type-grid">
+                {PACKAGING_TYPES.map((pkg) => {
+                  const isSelected = packagingType === pkg.id;
+                  return (
+                    <button
+                      key={pkg.id}
+                      type="button"
+                      id={`pkg-type-${pkg.id.toLowerCase()}`}
+                      className={`packaging-type-card ${isSelected ? "selected" : ""}`}
+                      onClick={() => {
+                        setPackagingType(pkg.id);
+                        setPhotos([]);
+                      }}
+                    >
+                      <div className="pkg-icon-wrapper">
+                        {getPackagingIcon(pkg.id)}
+                      </div>
+                      <div className="pkg-text-group">
+                        <span className="pkg-title">{pkg.label}</span>
+                        <span className="pkg-subtitle">{pkg.mr}</span>
+                        <span className="pkg-desc">{pkg.description}</span>
+                      </div>
+                      {isSelected && <CheckCircle2 className="pkg-check-badge" size={16} />}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Angles preview strip */}
+              <div className="packaging-angles-preview">
+                <span className="angles-preview-label">फोटो क्रम:</span>
+                {currentPhotoAngles.map((a, idx) => (
+                  <span
+                    key={a.id}
+                    className={`angle-chip ${a.required ? "required" : "optional"}`}
+                    title={a.tip}
+                  >
+                    {idx + 1}. {a.label}{!a.required && " *"}
+                  </span>
+                ))}
+                <span className="angle-chip-legend">* optional</span>
+              </div>
+            </section>
+          )}
+
+          {/* Step 3: Product Details (Hidden if Noise) */}
+          {!isNoise ? (
+            <section className="form-card">
+              <div className="card-header">
+                <div className="card-title-group">
+                  <span className="step-num">3</span>
                   <h2 className="card-title">Product Details</h2>
                   <span className="card-subtitle-mr">(उत्पादनाची माहिती)</span>
                 </div>
@@ -451,7 +529,7 @@ export default function App() {
           <section className="form-card guided-capture-card">
             <div className="card-header">
               <div className="card-title-group">
-                <span className="step-num">3</span>
+                <span className="step-num">4</span>
                 <h2 className="card-title">
                   {isNoise ? "Negative Sample Photos" : "Guided Angle Capture"}
                 </h2>
@@ -467,6 +545,9 @@ export default function App() {
               onPhotosChange={setPhotos}
               resetTrigger={resetTrigger}
               onOpenManual={() => setIsManualOpen(true)}
+              photoAngles={currentPhotoAngles}
+              packagingType={packagingType}
+              packagingLabel={currentPackaging.label}
             />
           </section>
 
@@ -520,7 +601,7 @@ export default function App() {
             <span className="submit-count-label">
               {isNoise
                 ? `${photos.length} photo${photos.length !== 1 ? "s" : ""} ready`
-                : `${photos.length} of 5 angles documented`}
+                : `${photos.length} of ${currentPhotoAngles.length} angles documented`}
             </span>
             <span className="submit-target-folder">
               Target Repository: Google Drive / Field Master Registry
