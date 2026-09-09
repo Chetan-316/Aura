@@ -93,11 +93,10 @@ export default function App() {
     };
   }, []);
 
-  // Validation
+  // Validation: At least 1 photo is needed to upload to Google Drive.
+  // No text info is mandatory; if details are not filled or not there, form still submits successfully.
   const isValid = () => {
-    if (photos.length === 0) return false;
-    if (isNoise) return true; // Noise only needs at least 1 photo
-    return productName.trim().length > 0;
+    return photos.length > 0;
   };
 
   // Submit Handler
@@ -113,9 +112,10 @@ export default function App() {
     const finalAngles = isNoise
       ? photos.map((_, i) => `Noise #${i + 1}`)
       : photos.map((p) => p.angle || "Angle");
+    const fallbackName = isNoise ? "Noise Negative Sample" : `${category} Sample`;
     const finalProductName = isNoise
-      ? (noiseTag || notes || "Noise Negative Sample")
-      : productName.trim();
+      ? (noiseTag || notes || fallbackName)
+      : (productName.trim() || fallbackName);
 
     const payload = {
       category: category,
@@ -379,13 +379,12 @@ export default function App() {
                 {currentPhotoAngles.map((a, idx) => (
                   <span
                     key={a.id}
-                    className={`angle-chip ${a.required ? "required" : "optional"}`}
+                    className="angle-chip"
                     title={a.tip}
                   >
-                    {idx + 1}. {a.label}{!a.required && " *"}
+                    {idx + 1}. {a.label}
                   </span>
                 ))}
-                <span className="angle-chip-legend">* optional</span>
               </div>
             </section>
           )}
@@ -403,9 +402,7 @@ export default function App() {
 
               <div className="input-field-group">
                 <label className="field-label" htmlFor="prod-name">
-                  <span>
-                    Product Brand Name <span className="field-required-star">*</span>
-                  </span>
+                  <span>Product Brand Name</span>
                   <span className="field-optional">नाव (उदा. Coromandel Gromor 28-28-0)</span>
                 </label>
                 <input
@@ -415,7 +412,6 @@ export default function App() {
                   placeholder="e.g. Coromandel Gromor 28-28-0"
                   value={productName}
                   onChange={(e) => setProductName(e.target.value)}
-                  required
                 />
               </div>
 
@@ -423,7 +419,7 @@ export default function App() {
                 <div className="input-field-group">
                   <label className="field-label" htmlFor="prod-mfg">
                     <span>Manufacturer</span>
-                    <span className="field-optional">Optional</span>
+                    <span className="field-optional">उत्पादक कंपनी</span>
                   </label>
                   <input
                     id="prod-mfg"
@@ -438,7 +434,7 @@ export default function App() {
                 <div className="input-field-group">
                   <label className="field-label" htmlFor="prod-pack">
                     <span>Pack Size</span>
-                    <span className="field-optional">Optional</span>
+                    <span className="field-optional">पॅक साईझ</span>
                   </label>
                   <input
                     id="prod-pack"
@@ -454,7 +450,7 @@ export default function App() {
               <div className="input-field-group">
                 <label className="field-label" htmlFor="prod-reg">
                   <span>Registration / CIB No.</span>
-                  <span className="field-optional">Optional (नोंदणी क्रमांक)</span>
+                  <span className="field-optional">नोंदणी क्रमांक</span>
                 </label>
                 <input
                   id="prod-reg"

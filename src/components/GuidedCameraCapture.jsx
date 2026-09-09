@@ -627,8 +627,7 @@ export default function GuidedCameraCapture({
             {packagingLabel}
           </span>
           <span className="pkg-badge-count">
-            {steps.filter(s => s.required).length} required
-            {steps.some(s => !s.required) ? ` + ${steps.filter(s => !s.required).length} optional` : ""}
+            {steps.length} angles
           </span>
         </div>
       )}
@@ -641,8 +640,7 @@ export default function GuidedCameraCapture({
             {steps.map((s, i) => (
               <span key={s.id}>
                 {i > 0 && <span style={{margin: "0 3px", opacity: 0.5}}>→</span>}
-                <strong>{i + 1}. {s.tabLabel}</strong>
-                {!s.required && <span style={{fontSize:"9px",opacity:0.7}}> (opt)</span>}
+                <strong>{i + 1}. {s.label}</strong>
               </span>
             ))}
           </span>
@@ -720,7 +718,7 @@ export default function GuidedCameraCapture({
                   type="button"
                   className={`step-dot-btn ${isCurrent ? "current" : ""} ${
                     isCaptured ? (isSkipped ? "skipped" : "completed") : ""
-                  }${!step.required ? " optional-step" : ""}`}
+                  }`}
                   onClick={() => handleJumpToStep(idx, isCaptured ? "captured" : "ready")}
                   title={fullStepTooltip}
                   aria-label={fullStepTooltip}
@@ -736,8 +734,7 @@ export default function GuidedCameraCapture({
                   </span>
                   <div className="dot-text-group">
                     <span className="dot-label">
-                      {step.tabLabel}
-                      {!step.required && <span className="dot-optional-tag"> opt</span>}
+                      {step.label}
                     </span>
                     <span className="dot-sublabel">{step.tabSubtext}</span>
                   </div>
@@ -879,15 +876,9 @@ export default function GuidedCameraCapture({
                   ? "Add clutter, counter, or non-product photos to train the AI to reject false positives. Rapid-fire multiple photos in one session."
                   : `${currentStep.mr} • Position the item and choose an option below.`}
               </p>
-              {!isNoise && !currentStep.required && (
-                <div className="optional-angle-notice">
-                  <Info size={13} />
-                  <span>This angle is <strong>optional</strong>. Capture it if the barcode is visible, or skip to continue.</span>
-                </div>
-              )}
             </div>
 
-            {/* EXACTLY TWO CLEAR BUTTONS + OPTIONAL SKIP */}
+            {/* EXACTLY TWO CLEAR BUTTONS + SKIP IF NOT ON PACKAGE */}
             <div className="ready-action-buttons">
               <button
                 type="button"
@@ -912,12 +903,12 @@ export default function GuidedCameraCapture({
               </button>
             </div>
 
-            {/* Skip button — only shown for optional angles */}
-            {!isNoise && !currentStep.required && (
+            {/* Skip button — available if an angle or barcode is not present on the package */}
+            {!isNoise && (
               <button
                 type="button"
                 className="btn-skip-optional"
-                id="btn-skip-optional-angle"
+                id="btn-skip-angle"
                 onClick={() => {
                   // Mark as skipped and advance
                   const skippedEntry = { skipped: true, angle: currentStep.id, dataUrl: null, compressedSize: 0 };
@@ -936,7 +927,7 @@ export default function GuidedCameraCapture({
                 }}
               >
                 <ChevronRight size={15} />
-                <span>Skip — Barcode Not Visible</span>
+                <span>Skip Angle (If Not on Package)</span>
               </button>
             )}
           </div>
