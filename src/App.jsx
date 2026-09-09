@@ -217,7 +217,7 @@ export default function App() {
                 <span className="brand-badge-tag">Field Portal</span>
               </div>
               <p className="brand-subtitle">
-                Maharashtra Agri-Input Dataset Collector • महाराष्ट्र कृषी डेटा संकलन केंद्र
+                Maharashtra Agri-Product Survey Portal • महाराष्ट्र कृषी उत्पादन सर्वेक्षण पोर्टल
               </p>
             </div>
           </div>
@@ -244,7 +244,7 @@ export default function App() {
 
         <div className="header-meta-bar">
           <p className="header-mission">
-            Collecting standardized 5-angle datasets to power offline mobile counterfeit and crop input recognition for retail dealers across rural Maharashtra.
+            Field documentation system for capturing standardized high-resolution photos of agricultural input packaging.
           </p>
 
           <div className="header-session-counter">

@@ -128,9 +128,8 @@ export default function UserManualModal({ isOpen, onClose }) {
               <div className="manual-intro-card">
                 <Lightbulb size={18} className="intro-icon" />
                 <p>
-                  Our offline AI system operates locally on mobile phones in rural Maharashtra without internet connectivity.
-                  To achieve <strong>99%+ accuracy against counterfeit bottles, torn wrappers, and lookalike fakes</strong>,
-                  each product package must be documented across these 5 standard perspectives.
+                  To ensure complete, standardized, and high-quality photographic documentation of agricultural input packaging,
+                  each product container or pouch must be documented across these 5 standard perspectives.
                 </p>
               </div>
 
@@ -150,7 +149,7 @@ export default function UserManualModal({ isOpen, onClose }) {
                 </div>
                 <div className="angle-guide-body">
                   <p className="angle-purpose">
-                    <strong>Why it matters:</strong> This is the primary angle used by the computer vision model to identify the commercial product, its registered trade class, and manufacturer brand assets.
+                    <strong>Why it matters:</strong> This is the primary view documenting the commercial product brand, its registered trade class, and manufacturer brand assets.
                   </p>
                   <ul className="guide-points-list">
                     <li>Place the bottle or pouch upright on the shop counter.</li>
@@ -203,7 +202,7 @@ export default function UserManualModal({ isOpen, onClose }) {
                 </div>
                 <div className="angle-guide-body">
                   <p className="angle-purpose">
-                    <strong>Why it matters:</strong> Counterfeiters often reuse genuine bottles with cheap generic plastic caps. Our ML model inspects specific mold grooves, holographic strips, and embossed brand insignias on the cap to detect adulteration.
+                    <strong>Why it matters:</strong> Captures specific mold patterns, security rings, holographic foil seals, and embossed manufacturer insignias on the container cap.
                   </p>
                   <ul className="guide-points-list">
                     <li>Shoot from a 45-degree top angle looking directly down at the cap.</li>
