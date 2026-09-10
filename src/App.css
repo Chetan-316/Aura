@@ -1273,6 +1273,17 @@
   background: rgba(255, 255, 255, 0.25);
 }
 
+.camera-pill-btn.flip {
+  background: rgba(34, 197, 94, 0.2);
+  border-color: rgba(34, 197, 94, 0.45);
+  color: #86efac;
+}
+
+.camera-pill-btn.flip:hover {
+  background: rgba(34, 197, 94, 0.35);
+  color: #ffffff;
+}
+
 .camera-pill-btn.close {
   background: rgba(239, 68, 68, 0.18);
   border-color: rgba(239, 68, 68, 0.35);
@@ -1384,15 +1395,59 @@
 }
 
 .viewfinder-label-badge {
-  background: rgba(0, 0, 0, 0.68);
+  background: rgba(0, 0, 0, 0.72);
   backdrop-filter: blur(8px);
   color: #ffffff;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
-  padding: 3px 10px;
+  padding: 4px 12px;
   border-radius: var(--radius-full);
   margin-bottom: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* Minimal Countdown & Angle Indicator directly above Shutter */
+.camera-minimal-countdown {
+  background: #060a12;
+  padding: 8px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.countdown-tag {
+  background: #15803d;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 800;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  letter-spacing: 0.3px;
+}
+
+.countdown-current-side {
+  color: #f1f5f9;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.countdown-current-side strong {
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.countdown-mr {
+  color: #86efac;
+  font-size: 12px;
+  margin-left: 3px;
+}
+
+.dot-skip-icon {
+  font-size: 10px;
+  font-weight: 800;
+  color: #ef4444;
 }
 
 .camera-init-spinner {

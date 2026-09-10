@@ -182,6 +182,58 @@ export default function GuidedCameraCapture({
   });
   const [rapidFireToast, setRapidFireToast] = useState(null);
 
+  // Sensory feedback: mechanical shutter audio click + mobile haptic vibration
+  const triggerShutterSensory = useCallback(() => {
+    // 1. Mobile haptic vibration
+    try {
+      if (typeof navigator !== "undefined" && navigator.vibrate) {
+        navigator.vibrate([40, 25, 55]);
+      }
+    } catch (e) {
+      // Ignore if unsupported
+    }
+
+    // 2. Synthesized camera shutter click using Web Audio API (zero external assets)
+    try {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (AudioCtx) {
+        const ctx = new AudioCtx();
+        if (ctx.state === "suspended") {
+          ctx.resume();
+        }
+        const now = ctx.currentTime;
+
+        // Click 1: Shutter actuation snap
+        const osc1 = ctx.createOscillator();
+        const gain1 = ctx.createGain();
+        osc1.type = "triangle";
+        osc1.frequency.setValueAtTime(880, now);
+        osc1.frequency.exponentialRampToValueAtTime(140, now + 0.035);
+        gain1.gain.setValueAtTime(0.4, now);
+        gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.035);
+        osc1.connect(gain1);
+        gain1.connect(ctx.destination);
+        osc1.start(now);
+        osc1.stop(now + 0.035);
+
+        // Click 2: Shutter curtain return (40ms later)
+        const osc2 = ctx.createOscillator();
+        const gain2 = ctx.createGain();
+        osc2.type = "sine";
+        osc2.frequency.setValueAtTime(1150, now + 0.04);
+        osc2.frequency.exponentialRampToValueAtTime(90, now + 0.075);
+        gain2.gain.setValueAtTime(0.35, now + 0.04);
+        gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.075);
+        osc2.connect(gain2);
+        gain2.connect(ctx.destination);
+        osc2.start(now + 0.04);
+        osc2.stop(now + 0.075);
+      }
+    } catch (e) {
+      // Audio context blocked or unsupported
+    }
+  }, []);
+
   // Sync test mock noise photos to parent on mount if needed
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -557,21 +609,23 @@ export default function GuidedCameraCapture({
     });
   };
 
-  // Live skip angle action (while stream is active)
-  const handleLiveSkipAngle = () => {
-    const skippedEntry = { skipped: true, angle: currentStep.id, dataUrl: null, compressedSize: 0 };
-    const updated = { ...capturedPhotos, [currentStep.id]: skippedEntry };
-    setCapturedPhotos(updated);
-    const orderedList = steps.map((s) => updated[s.id]).filter((p) => p && !p.skipped);
-    onPhotosChange(orderedList);
+  // Move to next angle action
+  const handleLiveNextAngle = () => {
+    // If not captured yet, mark as skipped so parent knows this angle was passed
+    if (!capturedPhotos[currentStep.id]?.dataUrl) {
+      const skippedEntry = { skipped: true, angle: currentStep.id, dataUrl: null, compressedSize: 0 };
+      const updated = { ...capturedPhotos, [currentStep.id]: skippedEntry };
+      setCapturedPhotos(updated);
+      const orderedList = steps.map((s) => updated[s.id]).filter((p) => p && !p.skipped);
+      onPhotosChange(orderedList);
+    }
 
     if (currentStepIdx < totalSteps - 1) {
       const nextIdx = currentStepIdx + 1;
-      const prevLabel = currentStep.label;
       const nextLabel = steps[nextIdx].label;
       setCurrentStepIdx(nextIdx);
-      setRapidFireToast(`Skipped ${prevLabel}. Framing: ${nextLabel}`);
-      setTimeout(() => setRapidFireToast(null), 2000);
+      setRapidFireToast(`Next: ${nextLabel} (${nextIdx + 1}/${totalSteps})`);
+      setTimeout(() => setRapidFireToast(null), 1600);
     } else {
       stopStream();
       setCameraState("summary");
@@ -644,41 +698,20 @@ export default function GuidedCameraCapture({
         const compressed = await processCanvasCapture(canvas, photoTag);
 
         if (compressed) {
+          triggerShutterSensory();
           const updated = [...noisePhotos, compressed];
           setNoisePhotos(updated);
           onPhotosChange(updated);
-          setRapidFireToast(`Photo #${updated.length} captured! Snap another or tap Done.`);
-          setTimeout(() => setRapidFireToast(null), 2200);
+          setRapidFireToast(`✓ Photo #${updated.length} captured!`);
+          setTimeout(() => setRapidFireToast(null), 1400);
           // Stream stays active so user can rapid-fire snap multiple photos!
         }
       } else {
-        // 5-Angle single step capture
+        // 5-Angle single step capture: save photo and display review screen
         const compressed = await processCanvasCapture(canvas, currentStep.id);
         if (compressed) {
-          const updated = {
-            ...capturedPhotos,
-            [currentStep.id]: compressed
-          };
-          setCapturedPhotos(updated);
-
-          const orderedList = steps
-            .map((s) => updated[s.id])
-            .filter(Boolean);
-          onPhotosChange(orderedList);
-
-          if (currentStepIdx < totalSteps - 1) {
-            // Stream STAYS ACTIVE across angles! Move directly to next angle guidance
-            const nextIdx = currentStepIdx + 1;
-            const prevLabel = currentStep.label;
-            const nextLabel = steps[nextIdx].label;
-            setCurrentStepIdx(nextIdx);
-            setRapidFireToast(`✓ ${prevLabel} captured! Framing: ${nextLabel}`);
-            setTimeout(() => setRapidFireToast(null), 2200);
-          } else {
-            // All 5 angles finished! Stop camera hardware and transition to summary
-            stopStream();
-            setCameraState("summary");
-          }
+          triggerShutterSensory();
+          saveCapturedPhoto(compressed);
         }
       }
     } catch (err) {
@@ -822,7 +855,11 @@ export default function GuidedCameraCapture({
 
   const capturedCount = isNoise
     ? noisePhotos.length
-    : Object.keys(capturedPhotos).length;
+    : steps.filter((s) => capturedPhotos[s.id] && !capturedPhotos[s.id].skipped).length;
+
+  const skippedCount = !isNoise
+    ? steps.filter((s) => capturedPhotos[s.id]?.skipped === true).length
+    : 0;
 
   return (
     <div className="guided-camera-container">
@@ -896,7 +933,7 @@ export default function GuidedCameraCapture({
             <span className="step-counter-tag">
               {isNoise
                 ? `${capturedCount} photo${capturedCount !== 1 ? "s" : ""} added`
-                : `${capturedCount}/${totalSteps} captured`}
+                : `${capturedCount}/${totalSteps} captured${skippedCount > 0 ? ` (${skippedCount} skipped)` : ""}`}
             </span>
             {onOpenManual && (
               <button
@@ -917,8 +954,9 @@ export default function GuidedCameraCapture({
         {!isNoise && (
           <div className="stepper-dots-bar" role="tablist" aria-label="Angle capture steps">
             {steps.map((step, idx) => {
-              const isCaptured = !!capturedPhotos[step.id];
-              const isSkipped = capturedPhotos[step.id]?.skipped === true;
+              const photoEntry = capturedPhotos[step.id];
+              const isCaptured = !!photoEntry && !photoEntry.skipped;
+              const isSkipped = photoEntry?.skipped === true;
               const isCurrent = idx === currentStepIdx && cameraState !== "summary";
               const fullStepTooltip = step.tooltip || `Angle ${idx + 1} of ${totalSteps}: ${step.label} (${step.mr})`;
               return (
@@ -926,7 +964,7 @@ export default function GuidedCameraCapture({
                   key={step.id}
                   type="button"
                   className={`step-dot-btn ${isCurrent ? "current" : ""} ${
-                    isCaptured ? (isSkipped ? "skipped" : "completed") : ""
+                    isCaptured ? "completed" : isSkipped ? "skipped" : ""
                   }`}
                   onClick={() => handleJumpToStep(idx, isCaptured ? "captured" : "ready")}
                   title={fullStepTooltip}
@@ -934,7 +972,7 @@ export default function GuidedCameraCapture({
                 >
                   <span className="dot-circle">
                     {isSkipped ? (
-                      <span style={{fontSize: "9px", opacity: 0.7}}>skip</span>
+                      <span className="dot-skip-icon">✕</span>
                     ) : isCaptured ? (
                       <Check size={11} strokeWidth={3} />
                     ) : (
@@ -945,7 +983,9 @@ export default function GuidedCameraCapture({
                     <span className="dot-label">
                       {step.label}
                     </span>
-                    <span className="dot-sublabel">{step.tabSubtext}</span>
+                    <span className="dot-sublabel">
+                      {isSkipped ? "Skipped" : isCaptured ? "Done ✓" : isCurrent ? "Active ▶" : step.tabSubtext}
+                    </span>
                   </div>
                 </button>
               );
@@ -1155,22 +1195,21 @@ export default function GuidedCameraCapture({
               <span>
                 {isNoise
                   ? `Noise Capture (${noisePhotos.length} taken)`
-                  : currentStep.label}
+                  : `${currentStep.label} (${currentStepIdx + 1}/${totalSteps})`}
               </span>
             </div>
 
             <div className="feed-controls-group">
-              {hasMultipleCameras && (
-                <button
-                  type="button"
-                  className="camera-pill-btn"
-                  onClick={toggleCameraFacing}
-                  title="Switch Camera (Front/Rear)"
-                >
-                  <SwitchCamera size={14} />
-                  <span>Flip</span>
-                </button>
-              )}
+              <button
+                type="button"
+                className="camera-pill-btn flip"
+                id="btn-flip-camera"
+                onClick={toggleCameraFacing}
+                title="Switch Camera (Front/Rear)"
+              >
+                <SwitchCamera size={14} />
+                <span>Flip</span>
+              </button>
               <button
                 type="button"
                 className="camera-pill-btn close"
@@ -1202,7 +1241,7 @@ export default function GuidedCameraCapture({
             {/* Live capture flash overlay */}
             {isCapturing && <div className="camera-shutter-flash" />}
 
-            {/* Rapid-fire / angle transition toast notification */}
+            {/* Clean, sleek transition toast notification */}
             {rapidFireToast && (
               <div className="noise-rapid-toast">
                 <CheckCircle2 size={15} />
@@ -1251,6 +1290,16 @@ export default function GuidedCameraCapture({
             )}
           </div>
 
+          {/* Minimal Countdown / Angle Progress Strip directly above Shutter */}
+          {!isNoise && (
+            <div className="camera-minimal-countdown">
+              <span className="countdown-tag">{currentStepIdx + 1} of {totalSteps}</span>
+              <span className="countdown-current-side">
+                Now: <strong>{currentStep.label}</strong> <span className="countdown-mr">({currentStep.mr})</span>
+              </span>
+            </div>
+          )}
+
           {/* Shutter Bar: Center Shutter, Upload Fallback, Skip button */}
           <div className="camera-shutter-bar">
             <button
@@ -1294,13 +1343,13 @@ export default function GuidedCameraCapture({
             ) : (
               <button
                 type="button"
-                className="shutter-side-btn skip"
-                id="btn-live-skip"
-                onClick={handleLiveSkipAngle}
-                title="Skip this angle if not on package"
+                className="shutter-side-btn next"
+                id="btn-live-next"
+                onClick={handleLiveNextAngle}
+                title="Go to next angle"
               >
-                <ChevronRight size={17} />
-                <span>Skip</span>
+                <ChevronRight size={18} />
+                <span>Next</span>
               </button>
             )}
           </div>
