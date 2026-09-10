@@ -74,6 +74,7 @@ export default function App() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [lastSubmissionResult, setLastSubmissionResult] = useState(null);
   const [submitError, setSubmitError] = useState(null);
+  const [activeSubmissionId, setActiveSubmissionId] = useState(null);
 
   const isNoise = category.includes("Noise") || category.includes("Not a Product");
 
@@ -109,6 +110,16 @@ export default function App() {
     setSubmitStep("Optimizing & packaging data...");
     setUploadProgress(20);
 
+    // Reuse or generate stable submissionId for idempotency on network retries
+    let currentId = activeSubmissionId;
+    if (!currentId) {
+      const now = new Date();
+      const pad = (n) => String(n).padStart(2, "0");
+      const datePart = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+      currentId = `SUB_${datePart}_${Math.floor(Math.random() * 899 + 100)}`;
+      setActiveSubmissionId(currentId);
+    }
+
     const finalAngles = isNoise
       ? photos.map((_, i) => `Noise #${i + 1}`)
       : photos.map((p) => p.angle || "Angle");
@@ -118,6 +129,7 @@ export default function App() {
       : (productName.trim() || fallbackName);
 
     const payload = {
+      submissionId: currentId,
       category: category,
       productName: finalProductName,
       packagingType: isNoise ? "" : packagingType,
@@ -185,6 +197,7 @@ export default function App() {
   // Reset form for next product
   const handleNextProduct = () => {
     setLastSubmissionResult(null);
+    setActiveSubmissionId(null);
     setProductName("");
     setRegNumber("");
     setManufacturer("");

@@ -208,6 +208,7 @@ export default function GuidedCameraCapture({
   const [hasMultipleCameras, setHasMultipleCameras] = useState(false);
 
   const videoRef = useRef(null);
+  const frameRef = useRef(null);
   const streamRef = useRef(null);
   const fileInputRef = useRef(null);
 
@@ -261,6 +262,21 @@ export default function GuidedCameraCapture({
     }
   }, [isNoise, onPhotosChange, stopStream]);
 
+  // If packaging type switched (e.g. Bottle <-> Pouch), reset angle steps and photos
+  const prevPackagingRef = useRef(packagingType);
+  useEffect(() => {
+    if (prevPackagingRef.current !== packagingType) {
+      prevPackagingRef.current = packagingType;
+      stopStream();
+      setCurrentStepIdx(0);
+      setCameraError(null);
+      setCameraState("idle");
+      setCapturedPhotos({});
+      setNoisePhotos([]);
+      onPhotosChange([]);
+    }
+  }, [packagingType, onPhotosChange, stopStream]);
+
   // Check hardware camera devices count
   useEffect(() => {
     if (navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
@@ -285,6 +301,98 @@ export default function GuidedCameraCapture({
   const startCamera = useCallback(async (targetFacingMode = facingMode) => {
     stopStream();
     setCameraError(null);
+
+    const params = new URLSearchParams(window.location.search);
+    const useMock = params.get("mockCamera") === "1" || params.get("mockCamera") === "true";
+
+    if (useMock) {
+      const mockCanvas = document.createElement("canvas");
+      mockCanvas.width = 1280;
+      mockCanvas.height = 960;
+      const mockCtx = mockCanvas.getContext("2d");
+
+      let frameCount = 0;
+      const drawMockFrame = () => {
+        frameCount++;
+        // Outer room/counter background (to verify cropping cuts this out)
+        mockCtx.fillStyle = "#1e293b";
+        mockCtx.fillRect(0, 0, 1280, 960);
+
+        // Counter edge & texture
+        mockCtx.fillStyle = "#334155";
+        mockCtx.fillRect(40, 40, 1200, 880);
+
+        // Product bottle centered within the guide area
+        mockCtx.fillStyle = "#14532d";
+        if (mockCtx.roundRect) {
+          mockCtx.beginPath();
+          mockCtx.roundRect(320, 140, 640, 680, 32);
+          mockCtx.fill();
+        } else {
+          mockCtx.fillRect(320, 140, 640, 680);
+        }
+
+        // Product label inside the bottle
+        mockCtx.fillStyle = "#f8fafc";
+        mockCtx.fillRect(360, 240, 560, 460);
+
+        mockCtx.fillStyle = "#15803d";
+        mockCtx.font = "bold 32px sans-serif";
+        mockCtx.textAlign = "center";
+        mockCtx.fillText("COROMANDEL GROMOR", 640, 310);
+
+        mockCtx.fillStyle = "#0f172a";
+        mockCtx.font = "20px sans-serif";
+        mockCtx.fillText("NPK 28-28-0 Fertilizer • CIR-18239", 640, 355);
+
+        // Barcode lines
+        mockCtx.fillStyle = "#000000";
+        for (let i = 0; i < 34; i++) {
+          const w = i % 4 === 0 ? 7 : (i % 2 === 0 ? 4 : 2);
+          mockCtx.fillRect(470 + i * 10, 410, w, 90);
+        }
+        mockCtx.fillStyle = "#334155";
+        mockCtx.font = "16px monospace";
+        mockCtx.fillText("8 901234 567890", 640, 525);
+
+        // Batch & Expiry
+        mockCtx.fillStyle = "#64748b";
+        mockCtx.font = "15px sans-serif";
+        mockCtx.fillText("B.No: CR-2026-08 • Exp: 08/2028 • MRP ₹ 1,450", 640, 570);
+
+        // Active angle indicator
+        mockCtx.fillStyle = "#16a34a";
+        mockCtx.font = "bold 20px sans-serif";
+        mockCtx.fillText(`[LIVE STREAM ACTIVE] Current: Angle ${currentStepIdx + 1}`, 640, 640);
+
+        // Live animated counter
+        mockCtx.fillStyle = "#22c55e";
+        mockCtx.font = "14px monospace";
+        mockCtx.fillText(`Mock Stream Frame #${frameCount} • ${new Date().toLocaleTimeString()}`, 640, 930);
+      };
+
+      drawMockFrame();
+      const intervalId = setInterval(drawMockFrame, 66);
+
+      const stream = mockCanvas.captureStream ? mockCanvas.captureStream(30) : null;
+      if (stream) {
+        stream.getVideoTracks().forEach((track) => {
+          const originalStop = track.stop.bind(track);
+          track.stop = () => {
+            clearInterval(intervalId);
+            originalStop();
+          };
+        });
+
+        streamRef.current = stream;
+        setCameraState("live");
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          videoRef.current.play().then(() => setStreamActive(true)).catch(() => setStreamActive(true));
+        }
+        return;
+      }
+    }
 
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       const isHttp =
@@ -353,7 +461,7 @@ export default function GuidedCameraCapture({
       setCameraError({ type: err.name, message });
       setCameraState("error");
     }
-  }, [facingMode, stopStream]);
+  }, [currentStepIdx, facingMode, stopStream]);
 
   // CRITICAL: Synchronize media stream whenever cameraState switches to 'live' and video element mounts
   useEffect(() => {
@@ -449,6 +557,27 @@ export default function GuidedCameraCapture({
     });
   };
 
+  // Live skip angle action (while stream is active)
+  const handleLiveSkipAngle = () => {
+    const skippedEntry = { skipped: true, angle: currentStep.id, dataUrl: null, compressedSize: 0 };
+    const updated = { ...capturedPhotos, [currentStep.id]: skippedEntry };
+    setCapturedPhotos(updated);
+    const orderedList = steps.map((s) => updated[s.id]).filter((p) => p && !p.skipped);
+    onPhotosChange(orderedList);
+
+    if (currentStepIdx < totalSteps - 1) {
+      const nextIdx = currentStepIdx + 1;
+      const prevLabel = currentStep.label;
+      const nextLabel = steps[nextIdx].label;
+      setCurrentStepIdx(nextIdx);
+      setRapidFireToast(`Skipped ${prevLabel}. Framing: ${nextLabel}`);
+      setTimeout(() => setRapidFireToast(null), 2000);
+    } else {
+      stopStream();
+      setCameraState("summary");
+    }
+  };
+
   // Capture frame from live video feed
   const handleSnapPhoto = async () => {
     if (!videoRef.current || isCapturing) return;
@@ -456,15 +585,57 @@ export default function GuidedCameraCapture({
     try {
       setIsCapturing(true);
       const video = videoRef.current;
-      const width = video.videoWidth || 1280;
-      const height = video.videoHeight || 720;
+      const videoWidth = video.videoWidth || 1280;
+      const videoHeight = video.videoHeight || 720;
+
+      // Crop mathematics: align canvas capture strictly to the guide-frame corner brackets
+      let cropX = 0;
+      let cropY = 0;
+      let cropW = videoWidth;
+      let cropH = videoHeight;
+
+      if (!isNoise && frameRef.current && video) {
+        const videoRect = video.getBoundingClientRect();
+        const frameRect = frameRef.current.getBoundingClientRect();
+
+        if (videoRect.width > 0 && videoRect.height > 0 && frameRect.width > 0 && frameRect.height > 0) {
+          const videoRatio = videoWidth / videoHeight;
+          const elemRatio = videoRect.width / videoRect.height;
+
+          let scale = 1;
+          let offsetX = 0;
+          let offsetY = 0;
+
+          if (videoRatio > elemRatio) {
+            // Video stream is wider than rendered element: clipped horizontally
+            scale = videoHeight / videoRect.height;
+            const renderedIntrinsicWidth = videoRect.width * scale;
+            offsetX = (videoWidth - renderedIntrinsicWidth) / 2;
+            offsetY = 0;
+          } else {
+            // Video stream is taller than rendered element: clipped vertically
+            scale = videoWidth / videoRect.width;
+            const renderedIntrinsicHeight = videoRect.height * scale;
+            offsetX = 0;
+            offsetY = (videoHeight - renderedIntrinsicHeight) / 2;
+          }
+
+          const relX = frameRect.left - videoRect.left;
+          const relY = frameRect.top - videoRect.top;
+
+          cropX = Math.max(0, Math.round(offsetX + relX * scale));
+          cropY = Math.max(0, Math.round(offsetY + relY * scale));
+          cropW = Math.max(10, Math.min(videoWidth - cropX, Math.round(frameRect.width * scale)));
+          cropH = Math.max(10, Math.min(videoHeight - cropY, Math.round(frameRect.height * scale)));
+        }
+      }
 
       const canvas = document.createElement("canvas");
-      canvas.width = width;
-      canvas.height = height;
+      canvas.width = cropW;
+      canvas.height = cropH;
 
       const ctx = canvas.getContext("2d");
-      ctx.drawImage(video, 0, 0, width, height);
+      ctx.drawImage(video, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
 
       if (isNoise) {
         // Multi-photo rapid fire capture for noise
@@ -484,8 +655,30 @@ export default function GuidedCameraCapture({
         // 5-Angle single step capture
         const compressed = await processCanvasCapture(canvas, currentStep.id);
         if (compressed) {
-          stopStream();
-          saveCapturedPhoto(compressed);
+          const updated = {
+            ...capturedPhotos,
+            [currentStep.id]: compressed
+          };
+          setCapturedPhotos(updated);
+
+          const orderedList = steps
+            .map((s) => updated[s.id])
+            .filter(Boolean);
+          onPhotosChange(orderedList);
+
+          if (currentStepIdx < totalSteps - 1) {
+            // Stream STAYS ACTIVE across angles! Move directly to next angle guidance
+            const nextIdx = currentStepIdx + 1;
+            const prevLabel = currentStep.label;
+            const nextLabel = steps[nextIdx].label;
+            setCurrentStepIdx(nextIdx);
+            setRapidFireToast(`✓ ${prevLabel} captured! Framing: ${nextLabel}`);
+            setTimeout(() => setRapidFireToast(null), 2200);
+          } else {
+            // All 5 angles finished! Stop camera hardware and transition to summary
+            stopStream();
+            setCameraState("summary");
+          }
         }
       }
     } catch (err) {
@@ -519,7 +712,7 @@ export default function GuidedCameraCapture({
         const file = fileList[0];
         const compressed = await compressImage(file, 1600, 0.82);
         compressed.angle = currentStep.id;
-        stopStream();
+        // For manual upload, save photo
         saveCapturedPhoto(compressed);
       }
     } catch (err) {
@@ -549,7 +742,6 @@ export default function GuidedCameraCapture({
 
   // Action: Retake current photo
   const handleRetakeCurrent = () => {
-    stopStream();
     const updated = { ...capturedPhotos };
     delete updated[currentStep.id];
     setCapturedPhotos(updated);
@@ -559,7 +751,8 @@ export default function GuidedCameraCapture({
       .filter(Boolean);
     onPhotosChange(orderedList);
 
-    setCameraState("idle");
+    // Immediately reuse / start camera stream
+    startCamera();
   };
 
   // Action: Advance to next step or summary
@@ -573,7 +766,8 @@ export default function GuidedCameraCapture({
       if (capturedPhotos[nextAngleId]) {
         setCameraState("captured");
       } else {
-        setCameraState("idle");
+        // Direct jump into camera for next angle
+        startCamera();
       }
     } else {
       setCameraState("summary");
@@ -582,16 +776,31 @@ export default function GuidedCameraCapture({
 
   // Jump to specific angle from summary or stepper
   const handleJumpToStep = (index, targetMode = "ready") => {
-    stopStream();
+    const wasLive = cameraState === "live" && streamActive;
     setCurrentStepIdx(index);
     const angleId = steps[index].id;
+
+    if (wasLive) {
+      // KEEP camera stream active!
+      if (targetMode === "retake") {
+        const updated = { ...capturedPhotos };
+        delete updated[angleId];
+        setCapturedPhotos(updated);
+        const orderedList = steps.map((s) => updated[s.id]).filter(Boolean);
+        onPhotosChange(orderedList);
+      }
+      setCameraState("live");
+      return;
+    }
+
     if (targetMode === "retake") {
       const updated = { ...capturedPhotos };
       delete updated[angleId];
       setCapturedPhotos(updated);
       const orderedList = steps.map((s) => updated[s.id]).filter(Boolean);
       onPhotosChange(orderedList);
-      setCameraState("idle");
+      // Immediately open camera
+      startCamera();
     } else if (capturedPhotos[angleId]) {
       setCameraState("captured");
     } else {
@@ -990,8 +1199,11 @@ export default function GuidedCameraCapture({
               className={`camera-video-feed ${streamActive ? "active" : "hidden"}`}
             />
 
-            {/* Rapid-fire toast notification for Noise mode */}
-            {isNoise && rapidFireToast && (
+            {/* Live capture flash overlay */}
+            {isCapturing && <div className="camera-shutter-flash" />}
+
+            {/* Rapid-fire / angle transition toast notification */}
+            {rapidFireToast && (
               <div className="noise-rapid-toast">
                 <CheckCircle2 size={15} />
                 <span>{rapidFireToast}</span>
@@ -1001,7 +1213,7 @@ export default function GuidedCameraCapture({
             {/* Viewfinder Target Framing Reticle */}
             {streamActive && !isNoise && (
               <div className="viewfinder-overlay">
-                <div className="viewfinder-frame">
+                <div className="viewfinder-frame" ref={frameRef}>
                   <div className="corner top-left" />
                   <div className="corner top-right" />
                   <div className="corner bottom-left" />
@@ -1039,7 +1251,7 @@ export default function GuidedCameraCapture({
             )}
           </div>
 
-          {/* Shutter Bar: Center Shutter, Upload Fallback, No Native duplicate */}
+          {/* Shutter Bar: Center Shutter, Upload Fallback, Skip button */}
           <div className="camera-shutter-bar">
             <button
               type="button"
@@ -1080,7 +1292,16 @@ export default function GuidedCameraCapture({
                 <span>Done</span>
               </button>
             ) : (
-              <div className="shutter-side-placeholder" />
+              <button
+                type="button"
+                className="shutter-side-btn skip"
+                id="btn-live-skip"
+                onClick={handleLiveSkipAngle}
+                title="Skip this angle if not on package"
+              >
+                <ChevronRight size={17} />
+                <span>Skip</span>
+              </button>
             )}
           </div>
 
