@@ -297,12 +297,16 @@ export default function GuidedCameraCapture({
     };
   }, [stopStream]);
 
-  // Gentle viewport stabilization: anchor camera without abrupt page jumps
-  const anchorCameraViewport = useCallback(() => {
+  // Diagnostic logger (cleaned up after verification)
+  const logTransitionEvent = useCallback(() => {}, []);
+
+  // Stable viewport stabilization: only anchor camera into view when initially opened from idle
+  const anchorOnInitialOpen = useCallback(() => {
     if (containerRef.current) {
       const rect = containerRef.current.getBoundingClientRect();
-      if (rect.top < 60 || rect.bottom < 150) {
-        containerRef.current.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      const viewportHeight = window.innerHeight || 800;
+      if (rect.top < 60 || rect.bottom > viewportHeight) {
+        containerRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
       }
     }
   }, []);
@@ -311,6 +315,7 @@ export default function GuidedCameraCapture({
   const startCamera = useCallback(async (targetFacingMode = facingMode) => {
     stopStream();
     setCameraError(null);
+    logTransitionEvent("CAMERA_OPEN");
 
     // Defocus any active buttons to prevent mobile browser auto-scroll on unmount
     if (document.activeElement && document.activeElement.blur) {
@@ -387,7 +392,9 @@ export default function GuidedCameraCapture({
           videoRef.current.srcObject = stream;
           videoRef.current.play().then(() => setStreamActive(true)).catch(() => setStreamActive(true));
         }
-        anchorCameraViewport();
+        if (cameraState === "idle") {
+          anchorOnInitialOpen();
+        }
         return;
       }
     }
@@ -433,7 +440,9 @@ export default function GuidedCameraCapture({
         video.srcObject = stream;
         video.play().then(() => setStreamActive(true)).catch(() => setStreamActive(true));
       }
-      anchorCameraViewport();
+      if (cameraState === "idle") {
+        anchorOnInitialOpen();
+      }
     } catch (err) {
       console.error("Camera access error:", err);
       stopStream();
@@ -448,7 +457,7 @@ export default function GuidedCameraCapture({
       setCameraError({ type: err.name, message });
       setCameraState("error");
     }
-  }, [anchorCameraViewport, capturingAdditional, currentStepIdx, additionalPhotos.length, facingMode, packagingLabel, steps, stopStream]);
+  }, [anchorOnInitialOpen, cameraState, capturingAdditional, currentStepIdx, additionalPhotos.length, facingMode, packagingLabel, steps, stopStream, logTransitionEvent]);
 
   // Sync media stream whenever cameraState switches to 'live' and video element mounts
   useEffect(() => {
@@ -577,27 +586,31 @@ export default function GuidedCameraCapture({
 
       // 2. Additional Photo Mode
       if (capturingAdditional) {
+        logTransitionEvent("BEFORE_CAPTURE");
         const nextIndex = String(additionalPhotos.length + 1).padStart(2, "0");
         const angleTag = `Additional_View_${nextIndex}`;
         const compressed = await processCanvasCapture(canvas, angleTag);
         if (compressed) {
           triggerShutterSensory();
           stopStream();
+          logTransitionEvent("AFTER_CAPTURE");
           const updated = [...additionalPhotos, compressed];
           setAdditionalPhotos(updated);
           syncToParent(capturedPhotos, updated);
           setCapturingAdditional(false);
           setCameraState("summary");
-          anchorCameraViewport();
+          logTransitionEvent("SUMMARY_OPEN");
         }
         return;
       }
 
       // 3. Standard Predefined Angle Mode
+      logTransitionEvent("BEFORE_CAPTURE");
       const compressed = await processCanvasCapture(canvas, currentStep.id);
       if (compressed) {
         triggerShutterSensory();
         stopStream();
+        logTransitionEvent("AFTER_CAPTURE");
         const updated = {
           ...capturedPhotos,
           [currentStep.id]: compressed
@@ -605,7 +618,7 @@ export default function GuidedCameraCapture({
         setCapturedPhotos(updated);
         syncToParent(updated, additionalPhotos);
         setCameraState("captured");
-        anchorCameraViewport();
+        logTransitionEvent("PREVIEW_RENDER");
       }
     } catch (err) {
       console.error("Snapshot failed:", err);
@@ -643,7 +656,6 @@ export default function GuidedCameraCapture({
         syncToParent(capturedPhotos, updated);
         setCapturingAdditional(false);
         setCameraState("summary");
-        anchorCameraViewport();
       } else {
         const file = fileList[0];
         const compressed = await compressImage(file, 1600, 0.82);
@@ -655,7 +667,6 @@ export default function GuidedCameraCapture({
         setCapturedPhotos(updated);
         syncToParent(updated, additionalPhotos);
         setCameraState("captured");
-        anchorCameraViewport();
       }
     } catch (err) {
       console.error("Upload error:", err);
@@ -668,6 +679,7 @@ export default function GuidedCameraCapture({
 
   // Retake current photo
   const handleRetakeCurrent = () => {
+    logTransitionEvent("RETAKE");
     const updated = { ...capturedPhotos };
     delete updated[currentStep.id];
     setCapturedPhotos(updated);
@@ -678,7 +690,9 @@ export default function GuidedCameraCapture({
   // Advance to next angle or summary
   const handleNextStep = () => {
     stopStream();
+    logTransitionEvent("ACCEPT_PHOTO");
     if (currentStepIdx < totalSteps - 1) {
+      logTransitionEvent("NEXT_ANGLE_START");
       const nextIdx = currentStepIdx + 1;
       setCurrentStepIdx(nextIdx);
       const nextAngleId = steps[nextIdx].id;
@@ -687,15 +701,17 @@ export default function GuidedCameraCapture({
         setCameraState("captured");
       } else {
         startCamera();
+        logTransitionEvent("NEXT_CAMERA_MOUNT");
       }
     } else {
       setCameraState("summary");
+      logTransitionEvent("SUMMARY_OPEN");
     }
-    anchorCameraViewport();
   };
 
   // Move to next angle while camera is live
   const handleLiveNextAngle = () => {
+    logTransitionEvent("SKIP");
     if (!capturedPhotos[currentStep.id]?.dataUrl) {
       const skippedEntry = { skipped: true, angle: currentStep.id, dataUrl: null, compressedSize: 0 };
       const updated = { ...capturedPhotos, [currentStep.id]: skippedEntry };
@@ -712,7 +728,7 @@ export default function GuidedCameraCapture({
     } else {
       stopStream();
       setCameraState("summary");
-      anchorCameraViewport();
+      logTransitionEvent("SUMMARY_OPEN");
     }
   };
 
@@ -723,6 +739,7 @@ export default function GuidedCameraCapture({
     const angleId = steps[index].id;
 
     if (targetMode === "retake") {
+      logTransitionEvent("RETAKE");
       const updated = { ...capturedPhotos };
       delete updated[angleId];
       setCapturedPhotos(updated);
@@ -735,11 +752,11 @@ export default function GuidedCameraCapture({
       stopStream();
       setCameraState("idle");
     }
-    anchorCameraViewport();
   };
 
   // Trigger capturing an additional photo
   const handleStartAdditionalCapture = () => {
+    logTransitionEvent("ADDITIONAL_PHOTO_OPEN");
     setCapturingAdditional(true);
     startCamera();
   };
@@ -1082,192 +1099,267 @@ export default function GuidedCameraCapture({
       )}
 
       {/* ==================================================================== */}
-      {/* STATE B: LIVE CAMERA VIEWPORT                                        */}
+      {/* STATES B & D: UNIFIED STABLE CAMERA WORKSPACE (LIVE & CAPTURED)      */}
       {/* ==================================================================== */}
-      {cameraState === "live" && (
-        <div className="camera-viewport-card" id="camera-live-card">
+      {(cameraState === "live" || (cameraState === "captured" && !isNoise && currentCapturedPhoto)) && (
+        <div className="camera-workspace-card" id="camera-workspace-card">
+          {/* Top Control Bar (Stable across Live and Captured states) */}
           <div className="camera-feed-topbar">
             <div className="feed-angle-pill">
-              <span className="live-pulse-dot" />
-              <span>
-                {isNoise
-                  ? `Noise (${noisePhotos.length} taken)`
-                  : capturingAdditional
-                  ? `Extra Photo #${additionalPhotos.length + 1}`
-                  : `${currentStep.label} (${currentStepIdx + 1}/${totalSteps})`}
-              </span>
+              {cameraState === "live" ? (
+                <>
+                  <span className="live-pulse-dot" />
+                  <span>
+                    {isNoise
+                      ? `Noise (${noisePhotos.length} taken)`
+                      : capturingAdditional
+                      ? `Extra Photo #${additionalPhotos.length + 1}`
+                      : `${currentStep.label} (${currentStepIdx + 1}/${totalSteps})`}
+                  </span>
+                </>
+              ) : (
+                <>
+                  <Check size={14} style={{ color: "#4ade80" }} />
+                  <span>
+                    {currentStep.label} ({currentStep.mr})
+                  </span>
+                </>
+              )}
             </div>
 
             <div className="feed-controls-group">
-              <button
-                type="button"
-                className="camera-pill-btn flip"
-                id="btn-flip-camera"
-                onClick={toggleCameraFacing}
-                title="Switch Camera (Front/Rear)"
-              >
-                <SwitchCamera size={14} />
-                <span>Flip</span>
-              </button>
-              <button
-                type="button"
-                className="camera-pill-btn close"
-                id="btn-close-camera"
-                onClick={() => {
-                  stopStream();
-                  setCapturingAdditional(false);
-                  setCameraState("idle");
-                }}
-                title="Close Camera"
-              >
-                <CameraOff size={14} />
-                <span>Close</span>
-              </button>
+              {cameraState === "live" ? (
+                <>
+                  <button
+                    type="button"
+                    className="camera-pill-btn flip"
+                    id="btn-flip-camera"
+                    onClick={toggleCameraFacing}
+                    title="Switch Camera (Front/Rear)"
+                    aria-label="Switch between front and rear cameras"
+                  >
+                    <SwitchCamera size={14} />
+                    <span>Flip</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="camera-pill-btn close"
+                    id="btn-close-camera"
+                    onClick={() => {
+                      stopStream();
+                      setCapturingAdditional(false);
+                      setCameraState("idle");
+                    }}
+                    title="Close Camera"
+                    aria-label="Close camera feed"
+                  >
+                    <CameraOff size={14} />
+                    <span>Close</span>
+                  </button>
+                </>
+              ) : (
+                <div className="preview-size-tag">
+                  {formatBytes(currentCapturedPhoto.compressedSize)}
+                </div>
+              )}
             </div>
           </div>
 
-          <div className="camera-viewfinder-wrapper">
-            <video
-              ref={videoRef}
-              playsInline
-              autoPlay
-              muted
-              className={`camera-video-feed ${streamActive ? "active" : "hidden"}`}
-            />
+          {/* Stable Media Stage Frame (Exact same 4:3 dimensions for video feed and preview image) */}
+          <div className="camera-media-frame">
+            {cameraState === "live" ? (
+              <>
+                <video
+                  ref={videoRef}
+                  playsInline
+                  autoPlay
+                  muted
+                  className={`camera-video-feed ${streamActive ? "active" : "hidden"}`}
+                />
 
-            {isCapturing && <div className="camera-shutter-flash" />}
+                {isCapturing && <div className="camera-shutter-flash" />}
 
-            {rapidFireToast && (
-              <div className="noise-rapid-toast">
-                <CheckCircle2 size={15} />
-                <span>{rapidFireToast}</span>
-              </div>
-            )}
-
-            {/* Target Reticle */}
-            {streamActive && !isNoise && (
-              <div className="viewfinder-overlay">
-                <div className="viewfinder-frame" ref={frameRef}>
-                  <div className="corner top-left" />
-                  <div className="corner top-right" />
-                  <div className="corner bottom-left" />
-                  <div className="corner bottom-right" />
-                  <div className="viewfinder-label-badge">
-                    {capturingAdditional
-                      ? `Additional View 0${additionalPhotos.length + 1}`
-                      : `${currentStep.label} • ${currentStep.mr}`}
+                {rapidFireToast && (
+                  <div className="noise-rapid-toast">
+                    <CheckCircle2 size={15} />
+                    <span>{rapidFireToast}</span>
                   </div>
-                </div>
-              </div>
-            )}
+                )}
 
-            {!streamActive && (
-              <div className="camera-init-spinner">
-                <RefreshCw size={32} className="spinner-ring" />
-                <span>Connecting camera feed...</span>
+                {/* Target Reticle */}
+                {streamActive && !isNoise && (
+                  <div className="viewfinder-overlay">
+                    <div className="viewfinder-frame" ref={frameRef}>
+                      <div className="corner top-left" />
+                      <div className="corner top-right" />
+                      <div className="corner bottom-left" />
+                      <div className="corner bottom-right" />
+                      <div className="viewfinder-label-badge">
+                        {capturingAdditional
+                          ? `Additional View 0${additionalPhotos.length + 1}`
+                          : `${currentStep.label} • ${currentStep.mr}`}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {!streamActive && (
+                  <div className="camera-init-spinner">
+                    <RefreshCw size={32} className="spinner-ring" />
+                    <span>Connecting camera feed...</span>
+                    <button
+                      type="button"
+                      className="spinner-fallback-btn"
+                      onClick={() => fileInputRef.current?.click()}
+                      style={{
+                        marginTop: "10px",
+                        background: "rgba(255, 255, 255, 0.15)",
+                        border: "1px solid rgba(255, 255, 255, 0.25)",
+                        color: "#ffffff",
+                        padding: "6px 12px",
+                        borderRadius: "16px",
+                        fontSize: "11.5px",
+                        cursor: "pointer"
+                      }}
+                    >
+                      Taking long? Tap to Upload
+                    </button>
+                  </div>
+                )}
+
+                {/* Countdown / Angle Progress Strip */}
+                {!isNoise && !capturingAdditional && (
+                  <div className="camera-media-badge">
+                    <span className="countdown-tag">{currentStepIdx + 1} of {totalSteps}</span>
+                    <span className="countdown-current-side">
+                      <strong>{currentStep.label}</strong>
+                    </span>
+                  </div>
+                )}
+              </>
+            ) : (
+              <img
+                src={currentCapturedPhoto.dataUrl}
+                alt={currentStep.label}
+                className="preview-photo-img"
+              />
+            )}
+          </div>
+
+          {/* Unified Action Bar (Exact same height across Live and Captured) */}
+          <div className="camera-action-bar">
+            {cameraState === "live" ? (
+              <>
                 <button
                   type="button"
-                  className="spinner-fallback-btn"
-                  onClick={() => fileInputRef.current?.click()}
-                  style={{
-                    marginTop: "10px",
-                    background: "rgba(255, 255, 255, 0.15)",
-                    border: "1px solid rgba(255, 255, 255, 0.25)",
-                    color: "#ffffff",
-                    padding: "6px 12px",
-                    borderRadius: "16px",
-                    fontSize: "11.5px",
-                    cursor: "pointer"
+                  className="shutter-side-btn"
+                  id="btn-shutter-upload"
+                  onClick={() => {
+                    if (capturingAdditional) {
+                      additionalFileInputRef.current?.click();
+                    } else {
+                      fileInputRef.current?.click();
+                    }
                   }}
+                  title="Upload photo from files"
+                  aria-label="Upload photo from files"
                 >
-                  Taking long? Tap to Upload
+                  <Upload size={17} />
+                  <span>Upload</span>
+                </button>
+
+                <button
+                  type="button"
+                  className="btn-shutter-trigger"
+                  id="btn-shutter"
+                  onClick={handleSnapPhoto}
+                  disabled={isCapturing || !streamActive}
+                  title="Capture Photo"
+                  aria-label="Capture Photo"
+                >
+                  <div className="shutter-inner-ring">
+                    {isCapturing ? (
+                      <RefreshCw size={22} className="spinner-ring" />
+                    ) : (
+                      <div className="shutter-center-dot" />
+                    )}
+                  </div>
+                </button>
+
+                {isNoise ? (
+                  <button
+                    type="button"
+                    className="shutter-side-btn done"
+                    onClick={() => {
+                      stopStream();
+                      setCameraState("idle");
+                    }}
+                    aria-label="Finish noise capture"
+                  >
+                    <Check size={17} />
+                    <span>Done</span>
+                  </button>
+                ) : capturingAdditional ? (
+                  <button
+                    type="button"
+                    className="shutter-side-btn done"
+                    onClick={() => {
+                      stopStream();
+                      setCapturingAdditional(false);
+                      setCameraState("summary");
+                    }}
+                    aria-label="Done capturing additional photos"
+                  >
+                    <Check size={17} />
+                    <span>Done</span>
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="shutter-side-btn next"
+                    id="btn-live-next"
+                    onClick={handleLiveNextAngle}
+                    title="Skip or proceed to next angle"
+                    aria-label="Skip or proceed to next angle"
+                  >
+                    <ChevronRight size={18} />
+                    <span>Next</span>
+                  </button>
+                )}
+              </>
+            ) : (
+              <div className="preview-action-buttons-group">
+                <button
+                  type="button"
+                  className="btn-preview-action retake"
+                  id="btn-retake-photo"
+                  onClick={handleRetakeCurrent}
+                  aria-label="Retake Photo"
+                >
+                  <RotateCcw size={16} />
+                  <span>Retake</span>
+                </button>
+
+                <button
+                  type="button"
+                  className="btn-preview-action next"
+                  id="btn-next-step"
+                  onClick={handleNextStep}
+                  aria-label={currentStepIdx < totalSteps - 1 ? `Accept and go to next angle` : "Review All Photos"}
+                >
+                  {currentStepIdx < totalSteps - 1 ? (
+                    <>
+                      <span>Accept & Next: {steps[currentStepIdx + 1]?.tabLabel || steps[currentStepIdx + 1]?.label}</span>
+                      <ChevronRight size={18} />
+                    </>
+                  ) : (
+                    <>
+                      <span>Accept & Review All</span>
+                      <CheckCircle2 size={18} />
+                    </>
+                  )}
                 </button>
               </div>
-            )}
-          </div>
-
-          {/* Countdown / Angle Progress Strip */}
-          {!isNoise && !capturingAdditional && (
-            <div className="camera-minimal-countdown">
-              <span className="countdown-tag">{currentStepIdx + 1} of {totalSteps}</span>
-              <span className="countdown-current-side">
-                Now: <strong>{currentStep.label}</strong> <span className="countdown-mr">({currentStep.mr})</span>
-              </span>
-            </div>
-          )}
-
-          {/* Shutter Bar */}
-          <div className="camera-shutter-bar">
-            <button
-              type="button"
-              className="shutter-side-btn"
-              id="btn-shutter-upload"
-              onClick={() => {
-                if (capturingAdditional) {
-                  additionalFileInputRef.current?.click();
-                } else {
-                  fileInputRef.current?.click();
-                }
-              }}
-              title="Upload photo from files"
-            >
-              <Upload size={17} />
-              <span>Upload</span>
-            </button>
-
-            <button
-              type="button"
-              className="btn-shutter-trigger"
-              id="btn-shutter"
-              onClick={handleSnapPhoto}
-              disabled={isCapturing || !streamActive}
-              title="Capture Photo"
-            >
-              <div className="shutter-inner-ring">
-                {isCapturing ? (
-                  <RefreshCw size={22} className="spinner-ring" />
-                ) : (
-                  <div className="shutter-center-dot" />
-                )}
-              </div>
-            </button>
-
-            {isNoise ? (
-              <button
-                type="button"
-                className="shutter-side-btn done"
-                onClick={() => {
-                  stopStream();
-                  setCameraState("idle");
-                }}
-              >
-                <Check size={17} />
-                <span>Done</span>
-              </button>
-            ) : capturingAdditional ? (
-              <button
-                type="button"
-                className="shutter-side-btn done"
-                onClick={() => {
-                  stopStream();
-                  setCapturingAdditional(false);
-                  setCameraState("summary");
-                }}
-              >
-                <Check size={17} />
-                <span>Done</span>
-              </button>
-            ) : (
-              <button
-                type="button"
-                className="shutter-side-btn next"
-                id="btn-live-next"
-                onClick={handleLiveNextAngle}
-                title="Go to next angle"
-              >
-                <ChevronRight size={18} />
-                <span>Next</span>
-              </button>
             )}
           </div>
         </div>
@@ -1317,63 +1409,6 @@ export default function GuidedCameraCapture({
               onClick={() => setCameraState("idle")}
             >
               Back to Ready Screen
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* ==================================================================== */}
-      {/* STATE D: CAPTURED SINGLE PHOTO REVIEW                                */}
-      {/* ==================================================================== */}
-      {cameraState === "captured" && !isNoise && currentCapturedPhoto && (
-        <div className="preview-viewport-card" id="camera-captured-card">
-          <div className="preview-image-container">
-            <img
-              src={currentCapturedPhoto.dataUrl}
-              alt={currentStep.label}
-              className="preview-photo-img"
-            />
-            <div className="preview-badge-overlay">
-              <div className="preview-angle-tag">
-                <Check size={13} />
-                <span>
-                  {currentStep.label} ({currentStep.mr})
-                </span>
-              </div>
-              <div className="preview-size-tag">
-                {formatBytes(currentCapturedPhoto.compressedSize)}
-              </div>
-            </div>
-          </div>
-
-          <div className="preview-actions-row">
-            <button
-              type="button"
-              className="btn-preview-action retake"
-              id="btn-retake-photo"
-              onClick={handleRetakeCurrent}
-            >
-              <RotateCcw size={16} />
-              <span>Retake Photo</span>
-            </button>
-
-            <button
-              type="button"
-              className="btn-preview-action next"
-              id="btn-next-step"
-              onClick={handleNextStep}
-            >
-              {currentStepIdx < totalSteps - 1 ? (
-                <>
-                  <span>Next: {steps[currentStepIdx + 1]?.tabLabel || steps[currentStepIdx + 1]?.label}</span>
-                  <ChevronRight size={18} />
-                </>
-              ) : (
-                <>
-                  <span>Review All Photos</span>
-                  <CheckCircle2 size={18} />
-                </>
-              )}
             </button>
           </div>
         </div>

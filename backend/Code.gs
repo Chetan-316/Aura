@@ -56,26 +56,47 @@ function handleSubmission(data) {
   // Use client submissionId if provided for idempotency, or generate unique fallback ID
   const submissionId = (data.submissionId && String(data.submissionId).trim()) ||
     ("SUB_" + folderDateStr + "_" + Math.floor(Math.random() * 899 + 100));
+  const safeSubmissionId = submissionId.replace(/[\\/:*?"<>|]/g, "_");
 
-  // 1. Determine Subfolder Name
+  // 1. Determine Subfolder Name deterministically using submissionId
   let subfolderName = "";
   if (isNoise) {
-    subfolderName = `[NOISE] ${productName || "Negative_Sample"} (${folderDateStr})`;
+    subfolderName = `[NOISE] [${safeSubmissionId}] ${productName || "Negative_Sample"}`;
   } else {
     const npkTag = (category.toLowerCase() === "fertilizer" && npk) ? ` [${npk}]` : "";
     const brandTag = manufacturer ? ` - ${manufacturer}` : "";
-    subfolderName = `[${category}] ${productName}${npkTag}${brandTag} (${folderDateStr})`;
+    subfolderName = `[${category}] [${safeSubmissionId}] ${productName}${npkTag}${brandTag}`;
   }
   subfolderName = subfolderName.replace(/[\\/:*?"<>|]/g, "_");
 
   // Idempotency: Check if an identical folder already exists with photos
   let submissionFolder;
   let isNewFolder = false;
+
   const existingFolders = rootFolder.getFoldersByName(subfolderName);
   if (existingFolders.hasNext()) {
     submissionFolder = existingFolders.next();
     if (submissionFolder.getFiles().hasNext()) {
-      // Already saved photos in a previous try - return existing folder URL directly
+      // Already saved photos in a previous try - ensure logged to Sheet and return existing folder info
+      logToMasterSheet(rootFolder, {
+        submissionId: submissionId,
+        timestamp: timestampStr,
+        category: category,
+        packagingType: packagingType,
+        productName: productName,
+        manufacturer: manufacturer,
+        regNumber: regNumber,
+        packSize: packSize,
+        npk: npk,
+        condition: condition,
+        angles: angles,
+        additionalPhotoCount: additionalPhotoCount,
+        totalPhotos: totalPhotos,
+        photoCount: totalPhotos,
+        folderUrl: submissionFolder.getUrl(),
+        notes: notes
+      });
+
       return {
         submissionId: submissionId,
         folderName: subfolderName,
@@ -85,8 +106,23 @@ function handleSubmission(data) {
       };
     }
   } else {
-    submissionFolder = rootFolder.createFolder(subfolderName);
-    isNewFolder = true;
+    // Search by deterministic submission identity in case of slight naming variation
+    const matchingSearch = rootFolder.searchFolders(`title contains '${safeSubmissionId}' and trashed = false`);
+    if (matchingSearch.hasNext()) {
+      submissionFolder = matchingSearch.next();
+      if (submissionFolder.getFiles().hasNext()) {
+        return {
+          submissionId: submissionId,
+          folderName: submissionFolder.getName(),
+          folderUrl: submissionFolder.getUrl(),
+          photoCount: photos.length,
+          alreadyProcessed: true
+        };
+      }
+    } else {
+      submissionFolder = rootFolder.createFolder(subfolderName);
+      isNewFolder = true;
+    }
   }
 
   const folderUrl = submissionFolder.getUrl();
@@ -287,6 +323,18 @@ function logToMasterSheet(rootFolder, entry) {
           return "";
       }
     };
+
+    // Deduplication check: inspect Submission ID column to prevent duplicate rows
+    const idColIdx = finalHeaders.indexOf("submission id") + 1;
+    if (idColIdx > 0 && sheet.getLastRow() > 1) {
+      const existingIds = sheet.getRange(2, idColIdx, sheet.getLastRow() - 1, 1).getValues();
+      for (let r = 0; r < existingIds.length; r++) {
+        if (String(existingIds[r][0]).trim() === String(entry.submissionId).trim()) {
+          // Submission already recorded in Master Sheet. Return without appending duplicate row.
+          return spreadsheet.getUrl();
+        }
+      }
+    }
 
     const rowData = finalHeaders.map(h => valueForHeader(h));
     sheet.appendRow(rowData);

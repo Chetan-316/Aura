@@ -47,19 +47,19 @@ export default function App() {
   const [category, setCategory] = useState(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get("testState") === "noise") return "Not a Product — Noise";
-    return "Fertilizer";
+    return "";
   });
-  const [packagingType, setPackagingType] = useState("Bottle");
+  const [packagingType, setPackagingType] = useState("");
   const [productName, setProductName] = useState("");
   const [regNumber, setRegNumber] = useState("");
   const [manufacturer, setManufacturer] = useState("");
-  const [packSize, setPackSize] = useState("250 ml");
+  const [packSize, setPackSize] = useState("");
   const [customPackSize, setCustomPackSize] = useState("");
-  const [packSizeUnit, setPackSizeUnit] = useState("volume"); // 'volume' | 'weight' | 'custom'
-  const [npk, setNpk] = useState("19-19-19");
+  const [packSizeUnit, setPackSizeUnit] = useState(""); // 'volume' | 'weight' | 'custom' | ''
+  const [npk, setNpk] = useState("");
   const [customNpk, setCustomNpk] = useState("");
   const [isCustomNpk, setIsCustomNpk] = useState(false);
-  const [condition, setCondition] = useState("New/Clean");
+  const [condition, setCondition] = useState("");
   const [notes, setNotes] = useState("");
   const [noiseTag, setNoiseTag] = useState("");
 
@@ -97,11 +97,11 @@ export default function App() {
   const [submitError, setSubmitError] = useState(null);
   const [activeSubmissionId, setActiveSubmissionId] = useState(null);
 
-  const isNoise = category.includes("Noise") || category.includes("Not a Product");
+  const isNoise = Boolean(category && (category.includes("Noise") || category.includes("Not a Product")));
 
   // Derive photo angles from selected packaging type
-  const currentPackaging = PACKAGING_TYPES.find((p) => p.id === packagingType) || PACKAGING_TYPES[0];
-  const currentPhotoAngles = currentPackaging.photoAngles;
+  const currentPackaging = PACKAGING_TYPES.find((p) => p.id === packagingType) || null;
+  const currentPhotoAngles = currentPackaging ? currentPackaging.photoAngles : [];
 
   // Track online status
   useEffect(() => {
@@ -128,6 +128,19 @@ export default function App() {
     } else if (pkgId === "Pouch") {
       setPackSizeUnit("weight");
       setPackSize("100 g");
+    }
+  };
+
+  // When category changes, purge any conditional NPK so it never leaks into other categories
+  const handleCategorySelect = (catId) => {
+    setCategory(catId);
+    if (catId !== "Fertilizer") {
+      setNpk("");
+      setCustomNpk("");
+      setIsCustomNpk(false);
+    }
+    if (catId.includes("Noise") || catId.includes("Not a Product")) {
+      goToStep(4);
     }
   };
 
@@ -295,24 +308,29 @@ export default function App() {
     }
   };
 
-  // Reset form for next product
+  // Reset form for next product (Completely clean slate: Category & Packaging unselected)
   const handleNextProduct = () => {
-    setLastSubmissionResult(null);
-    setActiveSubmissionId(null);
+    setCategory("");
+    setPackagingType("");
     setProductName("");
     setRegNumber("");
     setManufacturer("");
-    setPackSize(packagingType === "Bag" ? "50 kg" : "250 ml");
+    setPackSize("");
     setCustomPackSize("");
-    setPackSizeUnit(packagingType === "Bag" ? "weight" : "volume");
-    setNpk("19-19-19");
+    setPackSizeUnit("");
+    setNpk("");
     setCustomNpk("");
     setIsCustomNpk(false);
-    setCondition("New/Clean");
+    setCondition("");
     setNotes("");
     setNoiseTag("");
     setPhotos([]);
     setResetTrigger((prev) => prev + 1);
+    setActiveSubmissionId(null);
+    setLastSubmissionResult(null);
+    setSubmitError(null);
+    setSubmitStep("");
+    setUploadProgress(0);
     setCurrentStep(1);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
@@ -440,12 +458,7 @@ export default function App() {
                     type="button"
                     id={`cat-select-${cat.id.toLowerCase().replace(/[^a-z0-9]/g, "-")}`}
                     className={`category-pill-card ${isSelected ? "selected" : ""} ${cat.isNoise ? "is-noise" : ""}`}
-                    onClick={() => {
-                      setCategory(cat.id);
-                      if (cat.isNoise) {
-                        goToStep(4);
-                      }
-                    }}
+                    onClick={() => handleCategorySelect(cat.id)}
                   >
                     <div className="cat-icon-badge" style={{ color: cat.color }}>
                       {getCategoryIcon(cat.id)}
@@ -494,6 +507,7 @@ export default function App() {
                 type="button"
                 className="btn-step-next primary"
                 id="btn-cat-next"
+                disabled={!category}
                 onClick={() => goToStep(isNoise ? 4 : 2)}
               >
                 <span>{isNoise ? "Continue to Camera" : "Next: Packaging Type"}</span>
@@ -546,16 +560,22 @@ export default function App() {
             </div>
 
             {/* Sequence Preview Strip */}
-            <div className="packaging-sequence-summary">
-              <span className="seq-label">Angle Sequence ({currentPackaging.photoAngles.length} photos):</span>
-              <div className="seq-chips-row">
-                {currentPhotoAngles.map((a, idx) => (
-                  <span key={a.id} className="seq-angle-chip">
-                    {idx + 1}. {a.tabLabel || a.label}
-                  </span>
-                ))}
+            {currentPackaging ? (
+              <div className="packaging-sequence-summary">
+                <span className="seq-label">Angle Sequence ({currentPackaging.photoAngles.length} photos):</span>
+                <div className="seq-chips-row">
+                  {currentPhotoAngles.map((a, idx) => (
+                    <span key={a.id} className="seq-angle-chip">
+                      {idx + 1}. {a.tabLabel || a.label}
+                    </span>
+                  ))}
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="packaging-sequence-summary neutral">
+                <span className="seq-label">Select a packaging type above to see required photo sequence.</span>
+              </div>
+            )}
 
             <div className="step-nav-row between">
               <button
@@ -571,6 +591,7 @@ export default function App() {
                 type="button"
                 className="btn-step-next primary"
                 id="btn-pkg-next"
+                disabled={!packagingType}
                 onClick={() => goToStep(3)}
               >
                 <span>Next: Product Details</span>
@@ -649,13 +670,20 @@ export default function App() {
                 {/* Custom NPK Input Field */}
                 {isCustomNpk && (
                   <div className="custom-npk-input-box">
+                    <label htmlFor="custom-npk-input" className="sr-only">
+                      Custom NPK Grade
+                    </label>
                     <input
+                      id="custom-npk-input"
                       type="text"
                       className="text-input custom-input"
                       placeholder="Enter custom NPK grade (e.g. 13-0-45, 0-0-50)"
                       value={customNpk}
                       onChange={(e) => setCustomNpk(e.target.value)}
-                      autoFocus
+                      inputMode="text"
+                      enterKeyHint="done"
+                      autoComplete="off"
+                      aria-label="Custom NPK Grade"
                     />
                   </div>
                 )}
@@ -737,13 +765,20 @@ export default function App() {
               {/* Custom Size Input */}
               {packSizeUnit === "custom" && (
                 <div className="custom-size-input-box">
+                  <label htmlFor="custom-pack-size-input" className="sr-only">
+                    Custom Pack Size
+                  </label>
                   <input
+                    id="custom-pack-size-input"
                     type="text"
                     className="text-input"
                     placeholder="e.g. 750 ml, 40 kg, 5 kg bucket"
                     value={customPackSize}
                     onChange={(e) => setCustomPackSize(e.target.value)}
-                    autoFocus
+                    inputMode="text"
+                    enterKeyHint="done"
+                    autoComplete="off"
+                    aria-label="Custom Pack Size"
                   />
                 </div>
               )}
@@ -858,7 +893,7 @@ export default function App() {
                 <span className="step-num">{isNoise ? "2" : "4"}</span>
                 <div>
                   <h2 className="card-title">
-                    {isNoise ? "Negative Sample Photos" : `Capture Photos (${currentPackaging.label})`}
+                    {isNoise ? "Negative Sample Photos" : `Capture Photos ${currentPackaging ? `(${currentPackaging.label})` : ""}`}
                   </h2>
                   <span className="card-subtitle-mr">
                     {isNoise ? "नॉइज / निगेटिव्ह फोटो" : "प्रत्येक अँगल्सचा फोटो काढा"}
@@ -875,7 +910,7 @@ export default function App() {
               onOpenManual={() => setIsManualOpen(true)}
               photoAngles={currentPhotoAngles}
               packagingType={packagingType}
-              packagingLabel={currentPackaging.label}
+              packagingLabel={currentPackaging ? currentPackaging.label : ""}
               onProceedToReview={() => goToStep(5)}
             />
 

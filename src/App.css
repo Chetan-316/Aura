@@ -1196,8 +1196,9 @@
 }
 
 /* ==========================================================================
-   STATE B: LIVE CAMERA VIEWPORT (MUTUALLY EXCLUSIVE)
+   STATE B & D: UNIFIED STABLE CAMERA WORKSPACE (LIVE & CAPTURED)
    ========================================================================== */
+.camera-workspace-card,
 .camera-viewport-card {
   background: #090e17;
   border-radius: var(--radius-md);
@@ -1207,13 +1208,18 @@
   flex-direction: column;
   position: relative;
   border: 1px solid rgba(255, 255, 255, 0.08);
+  overflow-anchor: none;
 }
 
-/* Top control bar inside live camera */
+/* Top control bar inside camera workspace */
 .camera-feed-topbar {
-  background: rgba(9, 14, 23, 0.88);
+  height: 42px;
+  min-height: 42px;
+  max-height: 42px;
+  box-sizing: border-box;
+  background: rgba(9, 14, 23, 0.95);
   backdrop-filter: blur(8px);
-  padding: 8px 12px;
+  padding: 0 12px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1295,7 +1301,8 @@
   color: #ffffff;
 }
 
-/* Camera Viewfinder Box */
+/* Camera Viewfinder & Media Frame Box */
+.camera-media-frame,
 .camera-viewfinder-wrapper {
   position: relative;
   width: 100%;
@@ -1306,6 +1313,23 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  overflow-anchor: none;
+}
+
+.camera-media-badge {
+  position: absolute;
+  bottom: 8px;
+  left: 8px;
+  background: rgba(15, 23, 42, 0.88);
+  backdrop-filter: blur(6px);
+  padding: 3px 8px;
+  border-radius: var(--radius-full);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: #ffffff;
+  z-index: 5;
 }
 
 .camera-video-feed {
@@ -1468,14 +1492,28 @@
   to { transform: rotate(360deg); }
 }
 
-/* Shutter Bar */
+/* Unified Action Bar & Shutter Bar (Fixed matched height across Live and Captured states) */
+.camera-action-bar,
 .camera-shutter-bar {
+  height: 72px;
+  min-height: 72px;
+  max-height: 72px;
+  box-sizing: border-box;
   background: #060910;
-  padding: 12px 20px;
+  padding: 0 16px;
   display: flex;
   align-items: center;
   justify-content: space-around;
   border-top: 1px solid rgba(255, 255, 255, 0.08);
+  position: relative;
+  z-index: 10;
+}
+
+.preview-action-buttons-group {
+  display: grid;
+  grid-template-columns: 1fr 1.6fr;
+  gap: 10px;
+  width: 100%;
 }
 
 .shutter-side-btn {
