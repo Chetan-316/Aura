@@ -44,10 +44,14 @@ function handleSubmission(data) {
   const manufacturer = (data.manufacturer || "").trim();
   const regNumber = (data.regNumber || "").trim();
   const packSize = (data.packSize || "").trim();
+  const npk = (data.npk || "").trim();
   const condition = (data.condition || "").trim();
   const angles = Array.isArray(data.angles) ? data.angles.join(", ") : (data.angles || "");
   const notes = (data.notes || "").trim();
   const photos = data.photos || [];
+  const additionalPhotoCount = Number(data.additionalPhotoCount) || 
+    photos.filter(p => p.angle && p.angle.toLowerCase().includes("additional")).length;
+  const totalPhotos = photos.length;
 
   // Use client submissionId if provided for idempotency, or generate unique fallback ID
   const submissionId = (data.submissionId && String(data.submissionId).trim()) ||
@@ -58,8 +62,9 @@ function handleSubmission(data) {
   if (isNoise) {
     subfolderName = `[NOISE] ${productName || "Negative_Sample"} (${folderDateStr})`;
   } else {
+    const npkTag = (category.toLowerCase() === "fertilizer" && npk) ? ` [${npk}]` : "";
     const brandTag = manufacturer ? ` - ${manufacturer}` : "";
-    subfolderName = `[${category}] ${productName}${brandTag} (${folderDateStr})`;
+    subfolderName = `[${category}] ${productName}${npkTag}${brandTag} (${folderDateStr})`;
   }
   subfolderName = subfolderName.replace(/[\\/:*?"<>|]/g, "_");
 
@@ -97,12 +102,12 @@ function handleSubmission(data) {
 
       const mimeType = photo.type || "image/jpeg";
       const extension = mimeType.includes("png") ? "png" : mimeType.includes("webp") ? "webp" : "jpg";
-      const angleTag = photo.angle ? `_${photo.angle.replace(/\s+/g, "")}` : `_photo${i + 1}`;
+      const angleTag = photo.angle ? `_${photo.angle.replace(/[^\w-]/g, "_")}` : `_photo${i + 1}`;
       const filename = `${submissionId}${angleTag}.${extension}`;
 
       const decodedBlob = Utilities.newBlob(Utilities.base64Decode(base64Data), mimeType, filename);
       const file = submissionFolder.createFile(decodedBlob);
-      file.setDescription(`Product: ${productName} | Category: ${category} | Packaging: ${packagingType} | Angle: ${photo.angle || "N/A"}`);
+      file.setDescription(`Product: ${productName} | Category: ${category} | Packaging: ${packagingType}${npk ? ` | NPK: ${npk}` : ""} | Angle: ${photo.angle || "N/A"}`);
     }
   } catch (err) {
     // If saving photos failed and folder was just created, trash it to avoid orphaned empty folders
@@ -112,7 +117,7 @@ function handleSubmission(data) {
     throw new Error("Failed saving photos to Google Drive: " + err.message);
   }
 
-  // 3. Log into Master Google Sheet in the root folder (Thread-safe)
+  // 3. Log into Master Google Sheet in the root folder (Thread-safe & schema-resilient)
   logToMasterSheet(rootFolder, {
     submissionId: submissionId,
     timestamp: timestampStr,
@@ -122,9 +127,12 @@ function handleSubmission(data) {
     manufacturer: manufacturer,
     regNumber: regNumber,
     packSize: packSize,
+    npk: npk,
     condition: condition,
     angles: angles,
-    photoCount: photos.length,
+    additionalPhotoCount: additionalPhotoCount,
+    totalPhotos: totalPhotos,
+    photoCount: totalPhotos,
     folderUrl: folderUrl,
     notes: notes
   });
@@ -162,7 +170,7 @@ function logToMasterSheet(rootFolder, entry) {
     let spreadsheet;
     const files = rootFolder.getFilesByName(MASTER_SHEET_NAME);
 
-    const headers = [
+    const canonicalHeaders = [
       "Submission ID",
       "Timestamp (IST)",
       "Category",
@@ -171,65 +179,117 @@ function logToMasterSheet(rootFolder, entry) {
       "Manufacturer",
       "Reg / Cert No",
       "Pack Size",
+      "NPK / Fertilizer Grade",
       "Condition",
       "Angles Captured",
-      "Photo Count",
+      "Additional Photos",
+      "Total Photos",
       "Drive Folder Link",
       "Notes"
     ];
 
+    let sheet;
+
     if (files.hasNext()) {
       spreadsheet = SpreadsheetApp.open(files.next());
-      const sheet = spreadsheet.getActiveSheet();
+      sheet = spreadsheet.getActiveSheet();
 
-      // Check if existing sheet has the "Packaging Type" column
+      // Inspect existing headers dynamically
       const lastCol = sheet.getLastColumn();
-      if (lastCol >= 3) {
-        const headerRow = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
-        if (headerRow.indexOf("Packaging Type") === -1) {
-          // Seamlessly insert Packaging Type after Category (Col 3)
-          sheet.insertColumnAfter(3);
-          const newCell = sheet.getRange(1, 4);
-          newCell.setValue("Packaging Type");
-          newCell.setFontWeight("bold");
-          newCell.setBackground("#1B4332");
-          newCell.setFontColor("#FFFFFF");
-        }
+      let existingHeaders = [];
+      if (lastCol > 0) {
+        existingHeaders = sheet.getRange(1, 1, 1, lastCol).getValues()[0].map(h => String(h).trim());
       }
+
+      // Check for missing canonical headers and append them without corrupting previous columns
+      canonicalHeaders.forEach(targetHeader => {
+        // Match canonical name or compatible aliases
+        const hasHeader = existingHeaders.some(h => {
+          if (h.toLowerCase() === targetHeader.toLowerCase()) return true;
+          if (targetHeader === "Total Photos" && h.toLowerCase() === "photo count") return true;
+          return false;
+        });
+
+        if (!hasHeader) {
+          const newCol = sheet.getLastColumn() + 1;
+          const cell = sheet.getRange(1, newCol);
+          cell.setValue(targetHeader);
+          cell.setFontWeight("bold");
+          cell.setBackground("#1B4332");
+          cell.setFontColor("#FFFFFF");
+          existingHeaders.push(targetHeader);
+        }
+      });
     } else {
-      // Create new spreadsheet inside rootFolder
+      // Create brand new spreadsheet inside rootFolder
       spreadsheet = SpreadsheetApp.create(MASTER_SHEET_NAME);
       const sheetFile = DriveApp.getFileById(spreadsheet.getId());
       rootFolder.addFile(sheetFile);
       DriveApp.getRootFolder().removeFile(sheetFile);
 
-      const sheet = spreadsheet.getActiveSheet();
+      sheet = spreadsheet.getActiveSheet();
       sheet.setName("Submissions");
 
-      sheet.appendRow(headers);
-      const headerRange = sheet.getRange(1, 1, 1, headers.length);
+      sheet.appendRow(canonicalHeaders);
+      const headerRange = sheet.getRange(1, 1, 1, canonicalHeaders.length);
       headerRange.setFontWeight("bold");
       headerRange.setBackground("#1B4332");
       headerRange.setFontColor("#FFFFFF");
       sheet.setFrozenRows(1);
     }
 
-    const sheet = spreadsheet.getActiveSheet();
-    sheet.appendRow([
-      sanitizeCell(entry.submissionId),
-      sanitizeCell(entry.timestamp),
-      sanitizeCell(entry.category),
-      sanitizeCell(entry.packagingType),
-      sanitizeCell(entry.productName),
-      sanitizeCell(entry.manufacturer),
-      sanitizeCell(entry.regNumber),
-      sanitizeCell(entry.packSize),
-      sanitizeCell(entry.condition),
-      sanitizeCell(entry.angles),
-      Number(entry.photoCount) || 0,
-      sanitizeCell(entry.folderUrl),
-      sanitizeCell(entry.notes)
-    ]);
+    // Refresh header row map for exact column index mapping
+    const finalLastCol = sheet.getLastColumn();
+    const finalHeaders = sheet.getRange(1, 1, 1, finalLastCol).getValues()[0].map(h => String(h).trim().toLowerCase());
+
+    const valueForHeader = (headerName) => {
+      switch (headerName) {
+        case "submission id":
+          return sanitizeCell(entry.submissionId);
+        case "timestamp (ist)":
+        case "timestamp":
+          return sanitizeCell(entry.timestamp);
+        case "category":
+          return sanitizeCell(entry.category);
+        case "packaging type":
+        case "packaging":
+          return sanitizeCell(entry.packagingType);
+        case "product name":
+        case "product":
+          return sanitizeCell(entry.productName);
+        case "manufacturer":
+          return sanitizeCell(entry.manufacturer);
+        case "reg / cert no":
+        case "reg number":
+        case "cib number":
+          return sanitizeCell(entry.regNumber);
+        case "pack size":
+          return sanitizeCell(entry.packSize);
+        case "npk / fertilizer grade":
+        case "npk":
+          return sanitizeCell(entry.npk);
+        case "condition":
+          return sanitizeCell(entry.condition);
+        case "angles captured":
+        case "angles":
+          return sanitizeCell(entry.angles);
+        case "additional photos":
+          return Number(entry.additionalPhotoCount) || 0;
+        case "total photos":
+        case "photo count":
+          return Number(entry.totalPhotos || entry.photoCount) || 0;
+        case "drive folder link":
+        case "folder link":
+          return sanitizeCell(entry.folderUrl);
+        case "notes":
+          return sanitizeCell(entry.notes);
+        default:
+          return "";
+      }
+    };
+
+    const rowData = finalHeaders.map(h => valueForHeader(h));
+    sheet.appendRow(rowData);
 
     return spreadsheet.getUrl();
   } finally {

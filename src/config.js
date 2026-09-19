@@ -8,10 +8,15 @@ export const DEFAULT_API_ENDPOINT = "https://script.google.com/macros/s/AKfycbwy
 export const API_ENDPOINT = import.meta.env.VITE_API_ENDPOINT || DEFAULT_API_ENDPOINT;
 
 export const CATEGORIES = [
-  { id: "Pesticide", label: "Pesticide", mr: "कीटकनाशक", icon: "spray", badge: "Chem", color: "#10b981" },
   { id: "Fertilizer", label: "Fertilizer", mr: "खते / पोषण", icon: "wheat", badge: "Nutrient", color: "#f59e0b" },
+  { id: "Fungicide", label: "Fungicide", mr: "बुरशीनाशक", icon: "shield", badge: "Fungi", color: "#06b6d4" },
+  { id: "Herbicide", label: "Herbicide", mr: "तणनाशक", icon: "scissors", badge: "Weed", color: "#ec4899" },
+  { id: "Insecticide", label: "Insecticide", mr: "कीटकनाशक", icon: "bug", badge: "Insect", color: "#ef4444" },
+  { id: "Micronutrient", label: "Micronutrient", mr: "सूक्ष्मअन्नद्रव्ये", icon: "sparkles", badge: "Micro", color: "#10b981" },
+  { id: "PGR / Plant Growth Regulator", label: "PGR / Plant Growth Regulator", mr: "पी.जी.आर. (वाढ नियंत्रक)", icon: "trending-up", badge: "Growth", color: "#8b5cf6" },
+  { id: "Biostimulant", label: "Biostimulant", mr: "बायोस्टिम्युलंट / जैविक", icon: "leaf", badge: "Bio", color: "#84cc16" },
   { id: "Seed", label: "Seed", mr: "बियाणे", icon: "sprout", badge: "Hybrid", color: "#3b82f6" },
-  { id: "Not a Product — Noise", label: "Noise / Negative", mr: "नॉइज / निगेटिव्ह", icon: "slash", badge: "Noise", color: "#ef4444", isNoise: true }
+  { id: "Not a Product — Noise", label: "Noise / Negative", mr: "नॉइज / निगेटिव्ह", icon: "slash", badge: "Noise", color: "#64748b", isNoise: true }
 ];
 
 // Configurable packaging types — each carries its own ordered set of photo angles.
@@ -87,8 +92,8 @@ export const PACKAGING_TYPES = [
     label: "Pouch / Packet",
     mr: "पाऊच / पाकीट",
     icon: "package",
-    description: "Seed packets, powder sachets, granule bags",
-    descriptionMr: "बियाणे पाकीट, पावडर सॅशे, दाणेदार पिशवी",
+    description: "Seed packets, powder sachets, small foil packs",
+    descriptionMr: "बियाणे पाकीट, पावडर सॅशे, लहान पिशवी",
     photoAngles: [
       {
         id: "Front",
@@ -124,6 +129,60 @@ export const PACKAGING_TYPES = [
         required: false
       }
     ]
+  },
+  {
+    id: "Bag",
+    label: "Bag / Large Sack",
+    mr: "पोते / मोठी गोणी",
+    icon: "archive",
+    description: "25 kg / 50 kg fertilizer bags, large agricultural sacks",
+    descriptionMr: "२५ किलो / ५० किलो खताचे पोते, मोठी कृषी गोणी",
+    photoAngles: [
+      {
+        id: "Front",
+        label: "Front Side",
+        tabLabel: "Front",
+        tabSubtext: "Brand & grade",
+        mr: "पुढील बाजू",
+        tip: "Brand name, nutrient grade (NPK) & net weight",
+        guide: "Stand 1–2m back. Frame the full front of the sack showing brand title, NPK ratio, and net weight (e.g. 50kg).",
+        tooltip: "Angle 1: Front Side — Brand, NPK grade & weight",
+        required: true
+      },
+      {
+        id: "Back",
+        label: "Back Side",
+        tabLabel: "Back",
+        tabSubtext: "Specs & Mfg",
+        mr: "मागील बाजू",
+        tip: "Nutrient specifications, manufacturer, MRP & batch",
+        guide: "Photograph the reverse side: nutrient percentage chart, manufacturer address, batch no, and maximum retail price.",
+        tooltip: "Angle 2: Back Side — Composition, specs & batch",
+        required: true
+      },
+      {
+        id: "Side",
+        label: "Side Gusset / Tag",
+        tabLabel: "Side / Tag",
+        tabSubtext: "Gusset or stitched tag",
+        mr: "साइड / टॅग",
+        tip: "Side printed gusset or stitched mouth certification tag",
+        guide: "Capture side gusset print or the sewn certification tag at the mouth of the sack showing lot number and testing date.",
+        tooltip: "Angle 3: Side Gusset / Tag — Lot number & certification",
+        required: false
+      },
+      {
+        id: "Barcode",
+        label: "Barcode / QR",
+        tabLabel: "Barcode",
+        tabSubtext: "Printed code",
+        mr: "बारकोड",
+        tip: "Close-up of printed barcode or tracking QR code",
+        guide: "Get a sharp close-up of printed barcode or government tracking QR code on the bag.",
+        tooltip: "Angle 4: Barcode / QR — Close-up if present",
+        required: false
+      }
+    ]
   }
 ];
 
@@ -145,4 +204,42 @@ export const NOISE_TYPES = [
   "Store counter / floor / wall",
   "Off-catalog non-agri product",
   "Shadow / extreme glare"
+];
+
+// Common Indian Fertilizer NPK grades for 1-tap fast selection
+export const COMMON_NPK_GRADES = [
+  "19-19-19",
+  "10-26-26",
+  "12-32-16",
+  "18-46-0 (DAP)",
+  "20-20-0-13",
+  "0-52-34 (MKP)",
+  "14-35-14",
+  "24-24-0",
+  "0-0-50 (SOP)",
+  "12-61-0",
+  "46-0-0 (Urea)"
+];
+
+// Fast Pack Size selector presets
+export const COMMON_VOLUME_SIZES = [
+  "50 ml",
+  "100 ml",
+  "200 ml",
+  "250 ml",
+  "500 ml",
+  "1 L",
+  "5 L"
+];
+
+export const COMMON_WEIGHT_SIZES = [
+  "50 g",
+  "100 g",
+  "250 g",
+  "500 g",
+  "1 kg",
+  "5 kg",
+  "10 kg",
+  "25 kg",
+  "50 kg"
 ];
